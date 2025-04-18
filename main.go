@@ -1,9 +1,28 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
 	"strings"
+
+	_ "github.com/go-sql-driver/mysql"
 )
+
+type Driver struct {
+	db *sql.DB
+}
+
+func New(driver string, details string) *Driver {
+	db, err := sql.Open(driver, details)
+	if err != nil {
+		panic(err)
+	}
+	return &Driver{db: db}
+}
+
+func (d *Driver) NewOrm(tableName string) *Orm {
+	return &Orm{qb: &QueryBuilder{tableName: tableName, db: d.db}}
+}
 
 type LevelOne interface {
 	Select(fields ...string) LevelTwo
@@ -11,16 +30,18 @@ type LevelOne interface {
 
 type LevelTwo interface {
 	Where(condition string) LevelThree
-	Exec()
+	Exec() (*sql.Rows, error)
 }
 
 type LevelThree interface {
 	And(condition string) LevelThree
 	Or(condition string) LevelThree
-	Exec()
+	Exec() (*sql.Rows, error)
 }
 
 type QueryBuilder struct {
+	db *sql.DB
+
 	tableName    string
 	selectFields []string
 	whereClauses string
@@ -28,8 +49,7 @@ type QueryBuilder struct {
 	orClauses    []string
 }
 
-func (q *QueryBuilder) execute() {
-	// TODO; main logic is in here
+func (q *QueryBuilder) execute() (*sql.Rows, error) {
 	fields := "*"
 	if len(q.selectFields) > 0 {
 		fields = strings.Join(q.selectFields, ", ")
@@ -46,16 +66,18 @@ func (q *QueryBuilder) execute() {
 	}
 
 	query := fmt.Sprintf("SELECT %s from %s %s %s %s", fields, q.tableName, q.whereClauses, andConditions, orConditions)
-	fmt.Println(query)
+
+	rows, err := q.db.Query(query)
+	if err != nil {
+		return &sql.Rows{}, err
+	}
+
+	return rows, nil
 }
 
 // level 1
 type Orm struct {
 	qb *QueryBuilder
-}
-
-func NewOrm(tableName string) *Orm {
-	return &Orm{qb: &QueryBuilder{tableName: tableName}}
 }
 
 func (o *Orm) Select(fields ...string) LevelTwo {
@@ -73,8 +95,8 @@ func (l *l2) Where(condition string) LevelThree {
 	return &l3{qb: l.qb}
 }
 
-func (l *l2) Exec() {
-	l.qb.execute()
+func (l *l2) Exec() (*sql.Rows, error) {
+	return l.qb.execute()
 }
 
 // level 3
@@ -92,14 +114,16 @@ func (l *l3) Or(condition string) LevelThree {
 	return l
 }
 
-func (l *l3) Exec() {
-	l.qb.execute()
+func (l *l3) Exec() (*sql.Rows, error) {
+	return l.qb.execute()
 }
 
 func main() {
-	// Users := NewOrm("users")
-	// Users.Select("id").Where("id > 1").Exec()
+	// norm := New("mysql", "root:1234@/income_expense")
 
-	// Books := NewOrm("books")
-	// Books.Select().Where("age > 4").And("city = 'phill'").Or("city = 'every'").Exec()
+	// Users := norm.NewOrm("users")
+	// rows, err := Users.Select().Exec()
+	// if err != nil {
+	// 	panic(err)
+	// }
 }
