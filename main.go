@@ -29,7 +29,7 @@ type LevelOne interface {
 }
 
 type LevelTwo interface {
-	Where(condition string) LevelThree
+	Where(conditionKey, conditionValue string) LevelThree
 	Exec() (*sql.Rows, error)
 }
 
@@ -44,7 +44,7 @@ type QueryBuilder struct {
 
 	tableName    string
 	selectFields []string
-	whereClauses string
+	whereClauses [2]string
 	andClauses   []string
 	orClauses    []string
 }
@@ -65,13 +65,17 @@ func (q *QueryBuilder) execute() (*sql.Rows, error) {
 		orConditions = strings.Join(q.orClauses, ", ")
 	}
 
-	query := fmt.Sprintf("SELECT %s from %s %s %s %s", fields, q.tableName, q.whereClauses, andConditions, orConditions)
+	query := fmt.Sprintf("SELECT %s FROM %s %s %s %s", fields, q.tableName, q.whereClauses[0], andConditions, orConditions)
 
-	rows, err := q.db.Query(query)
+	args := []any{}
+	if q.whereClauses[1] != "" {
+		args = append(args, q.whereClauses[1])
+	}
+
+	rows, err := q.db.Query(query, args...)
 	if err != nil {
 		return &sql.Rows{}, err
 	}
-
 	return rows, nil
 }
 
@@ -90,8 +94,8 @@ type l2 struct {
 	qb *QueryBuilder
 }
 
-func (l *l2) Where(condition string) LevelThree {
-	l.qb.whereClauses = "WHERE " + condition
+func (l *l2) Where(conditionKey, conditionValue string) LevelThree {
+	l.qb.whereClauses = [2]string{"WHERE " + conditionKey + " ?", conditionValue}
 	return &l3{qb: l.qb}
 }
 
@@ -119,11 +123,13 @@ func (l *l3) Exec() (*sql.Rows, error) {
 }
 
 func main() {
-	// norm := New("mysql", "root:1234@/income_expense")
+	norm := New("mysql", "root:1234@/income_expense")
 
-	// Users := norm.NewOrm("users")
-	// rows, err := Users.Select().Exec()
-	// if err != nil {
-	// 	panic(err)
-	// }
+	Users := norm.NewOrm("users")
+	rows, err := Users.Select().Where("username =", "Abebe").Exec()
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Println(rows)
 }
