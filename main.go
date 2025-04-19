@@ -27,7 +27,8 @@ func (d *Driver) NewOrm(tableName string) *Orm {
 type LevelOne interface {
 	Select(fields ...string) LevelTwo
 	Delete() LevelTwo
-	Drop() LevelTwo
+	Drop() DropLevel
+	Insert(columns ...string) InsertSecondLevel
 }
 
 type LevelTwo interface {
@@ -45,6 +46,14 @@ type DropLevel interface {
 	Exec() (sql.Result, error)
 }
 
+type InsertSecondLevel interface {
+	Values(fields ...string) InsertThirdLevel
+}
+
+type InsertThirdLevel interface {
+	Exec() (sql.Result, error)
+}
+
 type QueryResult struct {
 	Rows   *sql.Rows
 	Result sql.Result
@@ -59,6 +68,13 @@ type QueryBuilder struct {
 	whereClauses [2]string
 	andClauses   [][]string
 	orClauses    [][]string
+}
+
+type InsertBuilder struct {
+	db        *sql.DB
+	tableName string
+	columns   []string
+	values    []string
 }
 
 func (q *QueryBuilder) handleSelect() (*QueryResult, error) {
@@ -155,6 +171,33 @@ func (d *dropLevel) handleDrop() (sql.Result, error) {
 	return d.qb.db.Exec(query)
 }
 
+func (ib *InsertBuilder) handleInsert() (sql.Result, error) {
+	insertColumns := ""
+	if len(ib.columns) > 0 {
+		insertColumns = "(" + strings.Join(ib.columns, ", ") + ")"
+	}
+
+	insertValues := ""
+	protectedValues := make([]string, len(ib.values))
+	for i := range ib.values {
+		protectedValues[i] = "?"
+	}
+
+	if len(ib.values) > 0 {
+		insertValues = "(" + strings.Join(protectedValues, ", ") + ")"
+	}
+
+	query := fmt.Sprintf("INSERT INTO %s %s VALUES %s", ib.tableName, insertColumns, insertValues)
+	args := []any{}
+	if len(ib.values) > 0 {
+		for i := range ib.values {
+			args = append(args, ib.values[i])
+		}
+	}
+
+	return ib.db.Exec(query, args...)
+}
+
 // level 1
 type Orm struct {
 	qb *QueryBuilder
@@ -173,6 +216,16 @@ func (o *Orm) Delete() LevelTwo {
 
 func (o *Orm) Drop() DropLevel {
 	return &dropLevel{qb: o.qb}
+}
+
+func (o *Orm) Insert(columns ...string) InsertSecondLevel {
+	ib := &InsertBuilder{
+		db:        o.qb.db,
+		columns:   columns,
+		tableName: o.qb.tableName,
+	}
+
+	return &insertSecondLevel{ib: ib}
 }
 
 // level 2
@@ -203,6 +256,21 @@ func (d *dropLevel) Exec() (sql.Result, error) {
 	return d.handleDrop()
 }
 
+type insertSecondLevel struct {
+	ib *InsertBuilder
+}
+
+func (is *insertSecondLevel) Values(values ...string) InsertThirdLevel {
+	ib := &InsertBuilder{
+		db:        is.ib.db,
+		tableName: is.ib.tableName,
+		columns:   is.ib.columns,
+		values:    values,
+	}
+
+	return &insertThirdLevel{ib: ib}
+}
+
 // level 3
 type l3 struct {
 	qb *QueryBuilder
@@ -230,10 +298,22 @@ func (l *l3) Exec() (*QueryResult, error) {
 	}
 }
 
+type insertThirdLevel struct {
+	ib *InsertBuilder
+}
+
+func (it *insertThirdLevel) Exec() (sql.Result, error) {
+	return it.ib.handleInsert()
+}
+
 func main() {
 	norm := New("mysql", "root:1234@/income_expense")
 	defer norm.db.Close()
 
 	persons := norm.NewOrm("persons")
-	persons.Drop().Exec()
+	// _, err := persons.Insert().Values("1", "bobby", "john", "nowhere", "mars").Exec()
+	_, err := persons.Insert("id", "lastName", "firstName", "address", "city").Values("2", "bob", "john", "nowhere", "mars").Exec()
+	if err != nil {
+		panic(err)
+	}
 }
