@@ -35,7 +35,7 @@ type LevelTwo interface {
 
 type LevelThree interface {
 	And(conditionKey, conditionValue string) LevelThree
-	Or(condition string) LevelThree
+	Or(conditionKey, conditionValue string) LevelThree
 	Exec() (*sql.Rows, error)
 }
 
@@ -46,7 +46,7 @@ type QueryBuilder struct {
 	selectFields []string
 	whereClauses [2]string
 	andClauses   [][]string
-	orClauses    []string
+	orClauses    [][]string
 }
 
 func (q *QueryBuilder) execute() (*sql.Rows, error) {
@@ -64,12 +64,16 @@ func (q *QueryBuilder) execute() (*sql.Rows, error) {
 		}
 	}
 
-	orConditions := ""
+	var orConditions strings.Builder
 	if len(q.orClauses) > 0 {
-		orConditions = strings.Join(q.orClauses, ", ")
+		for i := range q.orClauses {
+			qq := q.andClauses[i]
+			orConditions.WriteString(strings.Join(qq[:1], ", "))
+			orConditions.WriteString(" ")
+		}
 	}
 
-	query := fmt.Sprintf("SELECT %s FROM %s %s %s %s", fields, q.tableName, q.whereClauses[0], andConditions.String(), orConditions)
+	query := fmt.Sprintf("SELECT %s FROM %s %s %s %s", fields, q.tableName, q.whereClauses[0], andConditions.String(), orConditions.String())
 
 	args := []any{}
 	if q.whereClauses[1] != "" {
@@ -79,6 +83,12 @@ func (q *QueryBuilder) execute() (*sql.Rows, error) {
 	if len(q.andClauses) > 0 {
 		for i := range q.andClauses {
 			args = append(args, q.andClauses[i][1])
+		}
+	}
+
+	if len(q.orClauses) > 0 {
+		for i := range q.orClauses {
+			args = append(args, q.orClauses[i][1])
 		}
 	}
 
@@ -124,8 +134,9 @@ func (l *l3) And(conditionKey, conditionValue string) LevelThree {
 	return l
 }
 
-func (l *l3) Or(condition string) LevelThree {
-	l.qb.orClauses = append(l.qb.orClauses, "OR "+condition)
+func (l *l3) Or(conditionKey, conditionValue string) LevelThree {
+	or_c := []string{"OR " + conditionKey + " ?", conditionValue}
+	l.qb.andClauses = append(l.qb.andClauses, or_c)
 	return l
 }
 
@@ -137,7 +148,7 @@ func main() {
 	norm := New("mysql", "root:1234@/income_expense")
 
 	income := norm.NewOrm("income")
-	rows, err := income.Select().Where("price >", "400").And("product_id =", "11").And("income_id =", "10").Exec()
+	rows, err := income.Select().Where("price >", "400").Or("product_id =", "11").Or("income_id =", "10").Exec()
 	if err != nil {
 		panic(err)
 	}
