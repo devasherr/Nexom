@@ -34,7 +34,7 @@ type LevelTwo interface {
 }
 
 type LevelThree interface {
-	And(condition string) LevelThree
+	And(conditionKey, conditionValue string) LevelThree
 	Or(condition string) LevelThree
 	Exec() (*sql.Rows, error)
 }
@@ -45,7 +45,7 @@ type QueryBuilder struct {
 	tableName    string
 	selectFields []string
 	whereClauses [2]string
-	andClauses   []string
+	andClauses   [][]string
 	orClauses    []string
 }
 
@@ -55,9 +55,13 @@ func (q *QueryBuilder) execute() (*sql.Rows, error) {
 		fields = strings.Join(q.selectFields, ", ")
 	}
 
-	andConditions := ""
+	var andConditions strings.Builder
 	if len(q.andClauses) > 0 {
-		andConditions = strings.Join(q.andClauses, ", ")
+		for i := range q.andClauses {
+			qq := q.andClauses[i]
+			andConditions.WriteString(strings.Join(qq[:1], ", "))
+			andConditions.WriteString(" ")
+		}
 	}
 
 	orConditions := ""
@@ -65,11 +69,17 @@ func (q *QueryBuilder) execute() (*sql.Rows, error) {
 		orConditions = strings.Join(q.orClauses, ", ")
 	}
 
-	query := fmt.Sprintf("SELECT %s FROM %s %s %s %s", fields, q.tableName, q.whereClauses[0], andConditions, orConditions)
+	query := fmt.Sprintf("SELECT %s FROM %s %s %s %s", fields, q.tableName, q.whereClauses[0], andConditions.String(), orConditions)
 
 	args := []any{}
 	if q.whereClauses[1] != "" {
 		args = append(args, q.whereClauses[1])
+	}
+
+	if len(q.andClauses) > 0 {
+		for i := range q.andClauses {
+			args = append(args, q.andClauses[i][1])
+		}
 	}
 
 	rows, err := q.db.Query(query, args...)
@@ -108,8 +118,9 @@ type l3 struct {
 	qb *QueryBuilder
 }
 
-func (l *l3) And(condition string) LevelThree {
-	l.qb.andClauses = append(l.qb.andClauses, "AND "+condition)
+func (l *l3) And(conditionKey, conditionValue string) LevelThree {
+	and_c := []string{"AND " + conditionKey + " ?", conditionValue}
+	l.qb.andClauses = append(l.qb.andClauses, and_c)
 	return l
 }
 
@@ -125,8 +136,8 @@ func (l *l3) Exec() (*sql.Rows, error) {
 func main() {
 	norm := New("mysql", "root:1234@/income_expense")
 
-	Users := norm.NewOrm("users")
-	rows, err := Users.Select().Where("username =", "Abebe").Exec()
+	income := norm.NewOrm("income")
+	rows, err := income.Select().Where("price >", "400").And("product_id =", "11").And("income_id =", "10").Exec()
 	if err != nil {
 		panic(err)
 	}
