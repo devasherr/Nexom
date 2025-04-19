@@ -27,6 +27,7 @@ func (d *Driver) NewOrm(tableName string) *Orm {
 type LevelOne interface {
 	Select(fields ...string) LevelTwo
 	Delete() LevelTwo
+	Drop() LevelTwo
 }
 
 type LevelTwo interface {
@@ -38,6 +39,10 @@ type LevelThree interface {
 	And(conditionKey, conditionValue string) LevelThree
 	Or(conditionKey, conditionValue string) LevelThree
 	Exec() (*QueryResult, error)
+}
+
+type DropLevel interface {
+	Exec() (sql.Result, error)
 }
 
 type QueryResult struct {
@@ -145,6 +150,11 @@ func (q *QueryBuilder) handleDelete() (*QueryResult, error) {
 	return &QueryResult{Result: result}, err
 }
 
+func (d *dropLevel) handleDrop() (sql.Result, error) {
+	query := fmt.Sprintf("DROP TABLE IF EXISTS %s", d.qb.tableName)
+	return d.qb.db.Exec(query)
+}
+
 // level 1
 type Orm struct {
 	qb *QueryBuilder
@@ -159,6 +169,10 @@ func (o *Orm) Select(fields ...string) LevelTwo {
 func (o *Orm) Delete() LevelTwo {
 	o.qb.queryType = "delete"
 	return &l2{qb: o.qb}
+}
+
+func (o *Orm) Drop() DropLevel {
+	return &dropLevel{qb: o.qb}
 }
 
 // level 2
@@ -179,6 +193,14 @@ func (l *l2) Exec() (*QueryResult, error) {
 	} else {
 		return &QueryResult{}, nil
 	}
+}
+
+type dropLevel struct {
+	qb *QueryBuilder
+}
+
+func (d *dropLevel) Exec() (sql.Result, error) {
+	return d.handleDrop()
 }
 
 // level 3
@@ -210,12 +232,8 @@ func (l *l3) Exec() (*QueryResult, error) {
 
 func main() {
 	norm := New("mysql", "root:1234@/income_expense")
+	defer norm.db.Close()
 
-	products := norm.NewOrm("products")
-	queryRes, err := products.Delete().Where("amount <", "100").And("product_id =", "18").Exec()
-	if err != nil {
-		panic(err)
-	}
-
-	fmt.Println(queryRes.Result.RowsAffected()) // 1, nil
+	persons := norm.NewOrm("persons")
+	persons.Drop().Exec()
 }
