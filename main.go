@@ -26,21 +26,28 @@ func (d *Driver) NewOrm(tableName string) *Orm {
 
 type LevelOne interface {
 	Select(fields ...string) LevelTwo
+	Delete() LevelTwo
 }
 
 type LevelTwo interface {
 	Where(conditionKey, conditionValue string) LevelThree
-	Exec() (*sql.Rows, error)
+	Exec() (*QueryResult, error)
 }
 
 type LevelThree interface {
 	And(conditionKey, conditionValue string) LevelThree
 	Or(conditionKey, conditionValue string) LevelThree
-	Exec() (*sql.Rows, error)
+	Exec() (*QueryResult, error)
+}
+
+type QueryResult struct {
+	Rows   *sql.Rows
+	Result sql.Result
 }
 
 type QueryBuilder struct {
-	db *sql.DB
+	db        *sql.DB
+	queryType string
 
 	tableName    string
 	selectFields []string
@@ -49,7 +56,7 @@ type QueryBuilder struct {
 	orClauses    [][]string
 }
 
-func (q *QueryBuilder) execute() (*sql.Rows, error) {
+func (q *QueryBuilder) handleSelect() (*QueryResult, error) {
 	fields := "*"
 	if len(q.selectFields) > 0 {
 		fields = strings.Join(q.selectFields, ", ")
@@ -93,10 +100,49 @@ func (q *QueryBuilder) execute() (*sql.Rows, error) {
 	}
 
 	rows, err := q.db.Query(query, args...)
-	if err != nil {
-		return &sql.Rows{}, err
+	return &QueryResult{Rows: rows}, err
+}
+
+func (q *QueryBuilder) handleDelete() (*QueryResult, error) {
+	var andConditions strings.Builder
+	if len(q.andClauses) > 0 {
+		for i := range q.andClauses {
+			qq := q.andClauses[i]
+			andConditions.WriteString(strings.Join(qq[:1], ", "))
+			andConditions.WriteString(" ")
+		}
 	}
-	return rows, nil
+
+	var orConditions strings.Builder
+	if len(q.orClauses) > 0 {
+		for i := range q.orClauses {
+			qq := q.andClauses[i]
+			orConditions.WriteString(strings.Join(qq[:1], ", "))
+			orConditions.WriteString(" ")
+		}
+	}
+
+	query := fmt.Sprintf("DELETE FROM %s %s %s %s", q.tableName, q.whereClauses[0], andConditions.String(), orConditions.String())
+
+	args := []any{}
+	if q.whereClauses[1] != "" {
+		args = append(args, q.whereClauses[1])
+	}
+
+	if len(q.andClauses) > 0 {
+		for i := range q.andClauses {
+			args = append(args, q.andClauses[i][1])
+		}
+	}
+
+	if len(q.orClauses) > 0 {
+		for i := range q.orClauses {
+			args = append(args, q.orClauses[i][1])
+		}
+	}
+
+	result, err := q.db.Exec(query, args...)
+	return &QueryResult{Result: result}, err
 }
 
 // level 1
@@ -105,7 +151,13 @@ type Orm struct {
 }
 
 func (o *Orm) Select(fields ...string) LevelTwo {
+	o.qb.queryType = "select"
 	o.qb.selectFields = fields
+	return &l2{qb: o.qb}
+}
+
+func (o *Orm) Delete() LevelTwo {
+	o.qb.queryType = "delete"
 	return &l2{qb: o.qb}
 }
 
@@ -119,8 +171,14 @@ func (l *l2) Where(conditionKey, conditionValue string) LevelThree {
 	return &l3{qb: l.qb}
 }
 
-func (l *l2) Exec() (*sql.Rows, error) {
-	return l.qb.execute()
+func (l *l2) Exec() (*QueryResult, error) {
+	if l.qb.queryType == "select" {
+		return l.qb.handleSelect()
+	} else if l.qb.queryType == "delete" {
+		return l.qb.handleDelete()
+	} else {
+		return &QueryResult{}, nil
+	}
 }
 
 // level 3
@@ -140,18 +198,24 @@ func (l *l3) Or(conditionKey, conditionValue string) LevelThree {
 	return l
 }
 
-func (l *l3) Exec() (*sql.Rows, error) {
-	return l.qb.execute()
+func (l *l3) Exec() (*QueryResult, error) {
+	if l.qb.queryType == "select" {
+		return l.qb.handleSelect()
+	} else if l.qb.queryType == "delete" {
+		return l.qb.handleDelete()
+	} else {
+		return &QueryResult{}, nil
+	}
 }
 
 func main() {
 	norm := New("mysql", "root:1234@/income_expense")
 
-	income := norm.NewOrm("income")
-	rows, err := income.Select().Where("price >", "400").Or("product_id =", "11").Or("income_id =", "10").Exec()
+	products := norm.NewOrm("products")
+	queryRes, err := products.Delete().Where("amount <", "100").And("product_id =", "18").Exec()
 	if err != nil {
 		panic(err)
 	}
 
-	fmt.Println(rows)
+	fmt.Println(queryRes.Result.RowsAffected()) // 1, nil
 }
