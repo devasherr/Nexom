@@ -29,6 +29,7 @@ type LevelOne interface {
 	Delete() LevelTwo
 	Drop() DropLevel
 	Insert(columns ...string) InsertSecondLevel
+	Update() UpdateSecondLevel
 }
 
 type LevelTwo interface {
@@ -54,6 +55,19 @@ type InsertThirdLevel interface {
 	Exec() (sql.Result, error)
 }
 
+type UpdateSecondLevel interface {
+	Set(map[string]interface{}) UpdateThirdLevel
+}
+
+type UpdateThirdLevel interface {
+	Where(fields ...string) UpdateFourthLevel
+	Exec() (sql.Result, error)
+}
+
+type UpdateFourthLevel interface {
+	Exec() (sql.Result, error)
+}
+
 type QueryResult struct {
 	Rows   *sql.Rows
 	Result sql.Result
@@ -75,6 +89,163 @@ type InsertBuilder struct {
 	tableName string
 	columns   []string
 	values    []string
+}
+
+type UpdateBuilder struct {
+	db           *sql.DB
+	tableName    string
+	whereClauses []string
+	values       map[string]interface{}
+}
+
+// level 1
+type Orm struct {
+	qb *QueryBuilder
+}
+
+func (o *Orm) Select(fields ...string) LevelTwo {
+	o.qb.queryType = "select"
+	o.qb.selectFields = fields
+	return &l2{qb: o.qb}
+}
+
+func (o *Orm) Delete() LevelTwo {
+	o.qb.queryType = "delete"
+	return &l2{qb: o.qb}
+}
+
+func (o *Orm) Drop() DropLevel {
+	return &dropLevel{qb: o.qb}
+}
+
+func (o *Orm) Insert(columns ...string) InsertSecondLevel {
+	ib := &InsertBuilder{
+		db:        o.qb.db,
+		columns:   columns,
+		tableName: o.qb.tableName,
+	}
+
+	return &insertSecondLevel{ib: ib}
+}
+
+func (o *Orm) Update() UpdateSecondLevel {
+	ub := &UpdateBuilder{
+		db:           o.qb.db,
+		tableName:    o.qb.tableName,
+		whereClauses: []string{},
+		values:       map[string]interface{}{},
+	}
+
+	return &updateSecondLevel{ub: ub}
+}
+
+// level 2
+type l2 struct {
+	qb *QueryBuilder
+}
+
+func (l *l2) Where(conditionKey, conditionValue string) LevelThree {
+	l.qb.whereClauses = [2]string{"WHERE " + conditionKey + " ?", conditionValue}
+	return &l3{qb: l.qb}
+}
+
+func (l *l2) Exec() (*QueryResult, error) {
+	if l.qb.queryType == "select" {
+		return l.qb.handleSelect()
+	} else if l.qb.queryType == "delete" {
+		return l.qb.handleDelete()
+	} else {
+		return &QueryResult{}, nil
+	}
+}
+
+type dropLevel struct {
+	qb *QueryBuilder
+}
+
+func (d *dropLevel) Exec() (sql.Result, error) {
+	return d.handleDrop()
+}
+
+type insertSecondLevel struct {
+	ib *InsertBuilder
+}
+
+func (is *insertSecondLevel) Values(values ...string) InsertThirdLevel {
+	ib := &InsertBuilder{
+		db:        is.ib.db,
+		tableName: is.ib.tableName,
+		columns:   is.ib.columns,
+		values:    values,
+	}
+
+	return &insertThirdLevel{ib: ib}
+}
+
+type updateSecondLevel struct {
+	ub *UpdateBuilder
+}
+
+func (us *updateSecondLevel) Set(values map[string]interface{}) UpdateThirdLevel {
+	us.ub.values = values
+	return &updateThirdLevel{ub: us.ub}
+}
+
+// level 3
+type l3 struct {
+	qb *QueryBuilder
+}
+
+func (l *l3) And(conditionKey, conditionValue string) LevelThree {
+	and_c := []string{"AND " + conditionKey + " ?", conditionValue}
+	l.qb.andClauses = append(l.qb.andClauses, and_c)
+	return l
+}
+
+func (l *l3) Or(conditionKey, conditionValue string) LevelThree {
+	or_c := []string{"OR " + conditionKey + " ?", conditionValue}
+	l.qb.andClauses = append(l.qb.andClauses, or_c)
+	return l
+}
+
+func (l *l3) Exec() (*QueryResult, error) {
+	if l.qb.queryType == "select" {
+		return l.qb.handleSelect()
+	} else if l.qb.queryType == "delete" {
+		return l.qb.handleDelete()
+	} else {
+		return &QueryResult{}, nil
+	}
+}
+
+type insertThirdLevel struct {
+	ib *InsertBuilder
+}
+
+func (it *insertThirdLevel) Exec() (sql.Result, error) {
+	return it.ib.handleInsert()
+}
+
+type updateThirdLevel struct {
+	ub *UpdateBuilder
+}
+
+func (ut *updateThirdLevel) Where(fields ...string) UpdateFourthLevel {
+	ut.ub.whereClauses = fields
+	return &updateFourthLevel{ub: ut.ub}
+}
+
+func (ut *updateThirdLevel) Exec() (sql.Result, error) {
+	return ut.ub.handleUpdate()
+}
+
+// level 4
+type updateFourthLevel struct {
+	ub *UpdateBuilder
+}
+
+func (uf *updateFourthLevel) Exec() (sql.Result, error) {
+	return uf.ub.handleUpdate()
 }
 
 func (q *QueryBuilder) handleSelect() (*QueryResult, error) {
@@ -198,112 +369,28 @@ func (ib *InsertBuilder) handleInsert() (sql.Result, error) {
 	return ib.db.Exec(query, args...)
 }
 
-// level 1
-type Orm struct {
-	qb *QueryBuilder
-}
-
-func (o *Orm) Select(fields ...string) LevelTwo {
-	o.qb.queryType = "select"
-	o.qb.selectFields = fields
-	return &l2{qb: o.qb}
-}
-
-func (o *Orm) Delete() LevelTwo {
-	o.qb.queryType = "delete"
-	return &l2{qb: o.qb}
-}
-
-func (o *Orm) Drop() DropLevel {
-	return &dropLevel{qb: o.qb}
-}
-
-func (o *Orm) Insert(columns ...string) InsertSecondLevel {
-	ib := &InsertBuilder{
-		db:        o.qb.db,
-		columns:   columns,
-		tableName: o.qb.tableName,
+func (ub *UpdateBuilder) handleUpdate() (sql.Result, error) {
+	var values strings.Builder
+	args := []any{}
+	for key, val := range ub.values {
+		values.WriteString(key + " = ?, ")
+		args = append(args, val)
 	}
 
-	return &insertSecondLevel{ib: ib}
-}
+	whereClauses := ""
+	for i := range ub.whereClauses {
+		if i == 0 {
+			whereClauses = ub.whereClauses[i]
+			continue
+		}
 
-// level 2
-type l2 struct {
-	qb *QueryBuilder
-}
-
-func (l *l2) Where(conditionKey, conditionValue string) LevelThree {
-	l.qb.whereClauses = [2]string{"WHERE " + conditionKey + " ?", conditionValue}
-	return &l3{qb: l.qb}
-}
-
-func (l *l2) Exec() (*QueryResult, error) {
-	if l.qb.queryType == "select" {
-		return l.qb.handleSelect()
-	} else if l.qb.queryType == "delete" {
-		return l.qb.handleDelete()
-	} else {
-		return &QueryResult{}, nil
-	}
-}
-
-type dropLevel struct {
-	qb *QueryBuilder
-}
-
-func (d *dropLevel) Exec() (sql.Result, error) {
-	return d.handleDrop()
-}
-
-type insertSecondLevel struct {
-	ib *InsertBuilder
-}
-
-func (is *insertSecondLevel) Values(values ...string) InsertThirdLevel {
-	ib := &InsertBuilder{
-		db:        is.ib.db,
-		tableName: is.ib.tableName,
-		columns:   is.ib.columns,
-		values:    values,
+		args = append(args, ub.whereClauses[i])
 	}
 
-	return &insertThirdLevel{ib: ib}
-}
+	setValues := values.String()
+	query := fmt.Sprintf("UPDATE %s SET %s WHERE %s", ub.tableName, setValues[:len(setValues)-2], whereClauses)
 
-// level 3
-type l3 struct {
-	qb *QueryBuilder
-}
-
-func (l *l3) And(conditionKey, conditionValue string) LevelThree {
-	and_c := []string{"AND " + conditionKey + " ?", conditionValue}
-	l.qb.andClauses = append(l.qb.andClauses, and_c)
-	return l
-}
-
-func (l *l3) Or(conditionKey, conditionValue string) LevelThree {
-	or_c := []string{"OR " + conditionKey + " ?", conditionValue}
-	l.qb.andClauses = append(l.qb.andClauses, or_c)
-	return l
-}
-
-func (l *l3) Exec() (*QueryResult, error) {
-	if l.qb.queryType == "select" {
-		return l.qb.handleSelect()
-	} else if l.qb.queryType == "delete" {
-		return l.qb.handleDelete()
-	} else {
-		return &QueryResult{}, nil
-	}
-}
-
-type insertThirdLevel struct {
-	ib *InsertBuilder
-}
-
-func (it *insertThirdLevel) Exec() (sql.Result, error) {
-	return it.ib.handleInsert()
+	return ub.db.Exec(query, args...)
 }
 
 func main() {
@@ -311,9 +398,10 @@ func main() {
 	defer norm.db.Close()
 
 	persons := norm.NewOrm("persons")
-	// _, err := persons.Insert().Values("1", "bobby", "john", "nowhere", "mars").Exec()
-	_, err := persons.Insert("id", "lastName", "firstName", "address", "city").Values("2", "bob", "john", "nowhere", "mars").Exec()
+	res, err := persons.Update().Set(map[string]interface{}{"lastName": "bob", "city": "fake city"}).Where("id > ? AND id < ? OR id = ?", "0", "100", "2").Exec()
 	if err != nil {
 		panic(err)
 	}
+
+	fmt.Println(res.RowsAffected())
 }
