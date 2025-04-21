@@ -83,6 +83,11 @@ func (d *dropLevel) Exec() (sql.Result, error) {
 	return d.handleDrop()
 }
 
+func (d *dropLevel) ExecContext(ctx context.Context) (sql.Result, error) {
+	d.qb.context = ctx
+	return d.Exec()
+}
+
 type insertSecondLevel struct {
 	ib *InsertBuilder
 }
@@ -208,6 +213,10 @@ func (q *QueryBuilder) handleDelete() (*QueryResult, error) {
 
 func (d *dropLevel) handleDrop() (sql.Result, error) {
 	query := fmt.Sprintf("DROP TABLE IF EXISTS %s", d.qb.tableName)
+	if d.qb.context != nil {
+		return d.qb.db.ExecContext(d.qb.context, query)
+	}
+
 	return d.qb.db.Exec(query)
 }
 

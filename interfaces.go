@@ -26,6 +26,7 @@ type LevelThree interface {
 
 type DropLevel interface {
 	Exec() (sql.Result, error)
+	ExecContext(ctx context.Context) (sql.Result, error)
 }
 
 type InsertSecondLevel interface {
