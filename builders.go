@@ -16,7 +16,9 @@ type QueryBuilder struct {
 }
 
 type InsertBuilder struct {
-	db        *sql.DB
+	db      *sql.DB
+	context context.Context
+
 	tableName string
 	columns   []string
 	values    []string

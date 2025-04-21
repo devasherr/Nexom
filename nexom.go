@@ -140,6 +140,11 @@ func (it *insertThirdLevel) Exec() (sql.Result, error) {
 	return it.ib.handleInsert()
 }
 
+func (it *insertThirdLevel) ExecContext(ctx context.Context) (sql.Result, error) {
+	it.ib.context = ctx
+	return it.Exec()
+}
+
 type updateThirdLevel struct {
 	ub *UpdateBuilder
 }
@@ -242,6 +247,10 @@ func (ib *InsertBuilder) handleInsert() (sql.Result, error) {
 		for i := range ib.values {
 			args = append(args, ib.values[i])
 		}
+	}
+
+	if ib.context != nil {
+		return ib.db.ExecContext(ib.context, query, args...)
 	}
 
 	return ib.db.Exec(query, args...)

@@ -35,6 +35,7 @@ type InsertSecondLevel interface {
 
 type InsertThirdLevel interface {
 	Exec() (sql.Result, error)
+	ExecContext(ctx context.Context) (sql.Result, error)
 }
 
 type UpdateSecondLevel interface {
