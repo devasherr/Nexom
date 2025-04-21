@@ -71,13 +71,8 @@ func (l *l2) Exec() (*QueryResult, error) {
 }
 
 func (l *l2) ExecContext(ctx context.Context) (*QueryResult, error) {
-	if l.qb.queryType == "select" {
-		return l.qb.handleSelectWithContext(ctx)
-	} else if l.qb.queryType == "delete" {
-		return l.qb.handleDeleteWithContext(ctx)
-	} else {
-		return &QueryResult{}, nil
-	}
+	l.qb.context = ctx
+	return l.Exec()
 }
 
 type dropLevel struct {
@@ -128,13 +123,8 @@ func (l *l3) Exec() (*QueryResult, error) {
 }
 
 func (l *l3) ExecContext(ctx context.Context) (*QueryResult, error) {
-	if l.qb.queryType == "select" {
-		return l.qb.handleSelectWithContext(ctx)
-	} else if l.qb.queryType == "delete" {
-		return l.qb.handleDeleteWithContext(ctx)
-	} else {
-		return &QueryResult{}, nil
-	}
+	l.qb.context = ctx
+	return l.Exec()
 }
 
 type insertThirdLevel struct {
@@ -185,29 +175,12 @@ func (q *QueryBuilder) handleSelect() (*QueryResult, error) {
 
 	query := fmt.Sprintf("SELECT %s FROM %s %s", fields, q.tableName, whereConditions)
 
+	if q.context != nil {
+		rows, err := q.db.QueryContext(q.context, query, args...)
+		return &QueryResult{Rows: rows}, err
+	}
+
 	rows, err := q.db.Query(query, args...)
-	return &QueryResult{Rows: rows}, err
-}
-
-func (q *QueryBuilder) handleSelectWithContext(ctx context.Context) (*QueryResult, error) {
-	fields := "*"
-	if len(q.selectFields) > 0 {
-		fields = strings.Join(q.selectFields, ", ")
-	}
-
-	whereConditions := ""
-	args := []any{}
-
-	if len(q.whereClauses) > 0 {
-		whereConditions = "WHERE " + q.whereClauses[0]
-		for i := 1; i < len(q.whereClauses); i++ {
-			args = append(args, q.whereClauses[i])
-		}
-	}
-
-	query := fmt.Sprintf("SELECT %s FROM %s %s", fields, q.tableName, whereConditions)
-
-	rows, err := q.db.QueryContext(ctx, query, args...)
 	return &QueryResult{Rows: rows}, err
 }
 
@@ -224,26 +197,15 @@ func (q *QueryBuilder) handleDelete() (*QueryResult, error) {
 
 	query := fmt.Sprintf("DELETE FROM %s %s", q.tableName, whereConditions)
 
+	if q.context != nil {
+		rows, err := q.db.QueryContext(q.context, query, args...)
+		return &QueryResult{Rows: rows}, err
+	}
+
 	result, err := q.db.Exec(query, args...)
 	return &QueryResult{Result: result}, err
 }
 
-func (q *QueryBuilder) handleDeleteWithContext(ctx context.Context) (*QueryResult, error) {
-	whereConditions := ""
-	args := []any{}
-
-	if len(q.whereClauses) > 0 {
-		whereConditions = "WHERE " + q.whereClauses[0]
-		for i := 1; i < len(q.whereClauses); i++ {
-			args = append(args, q.whereClauses[i])
-		}
-	}
-
-	query := fmt.Sprintf("DELETE FROM %s %s", q.tableName, whereConditions)
-
-	result, err := q.db.ExecContext(ctx, query, args...)
-	return &QueryResult{Result: result}, err
-}
 func (d *dropLevel) handleDrop() (sql.Result, error) {
 	query := fmt.Sprintf("DROP TABLE IF EXISTS %s", d.qb.tableName)
 	return d.qb.db.Exec(query)

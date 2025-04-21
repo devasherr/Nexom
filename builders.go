@@ -1,12 +1,14 @@
 package nexom
 
 import (
+	"context"
 	"database/sql"
 )
 
 type QueryBuilder struct {
 	db        *sql.DB
 	queryType string
+	context   context.Context
 
 	tableName    string
 	selectFields []string
