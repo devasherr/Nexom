@@ -33,13 +33,11 @@ type LevelOne interface {
 }
 
 type LevelTwo interface {
-	Where(conditionKey, conditionValue string) LevelThree
+	Where(conditions ...string) LevelThree
 	Exec() (*QueryResult, error)
 }
 
 type LevelThree interface {
-	And(conditionKey, conditionValue string) LevelThree
-	Or(conditionKey, conditionValue string) LevelThree
 	Exec() (*QueryResult, error)
 }
 
@@ -79,9 +77,7 @@ type QueryBuilder struct {
 
 	tableName    string
 	selectFields []string
-	whereClauses [2]string
-	andClauses   [][]string
-	orClauses    [][]string
+	whereClauses []string
 }
 
 type InsertBuilder struct {
@@ -144,8 +140,8 @@ type l2 struct {
 	qb *QueryBuilder
 }
 
-func (l *l2) Where(conditionKey, conditionValue string) LevelThree {
-	l.qb.whereClauses = [2]string{"WHERE " + conditionKey + " ?", conditionValue}
+func (l *l2) Where(conditions ...string) LevelThree {
+	l.qb.whereClauses = conditions
 	return &l3{qb: l.qb}
 }
 
@@ -196,18 +192,6 @@ type l3 struct {
 	qb *QueryBuilder
 }
 
-func (l *l3) And(conditionKey, conditionValue string) LevelThree {
-	and_c := []string{"AND " + conditionKey + " ?", conditionValue}
-	l.qb.andClauses = append(l.qb.andClauses, and_c)
-	return l
-}
-
-func (l *l3) Or(conditionKey, conditionValue string) LevelThree {
-	or_c := []string{"OR " + conditionKey + " ?", conditionValue}
-	l.qb.andClauses = append(l.qb.andClauses, or_c)
-	return l
-}
-
 func (l *l3) Exec() (*QueryResult, error) {
 	if l.qb.queryType == "select" {
 		return l.qb.handleSelect()
@@ -254,84 +238,34 @@ func (q *QueryBuilder) handleSelect() (*QueryResult, error) {
 		fields = strings.Join(q.selectFields, ", ")
 	}
 
-	var andConditions strings.Builder
-	if len(q.andClauses) > 0 {
-		for i := range q.andClauses {
-			qq := q.andClauses[i]
-			andConditions.WriteString(strings.Join(qq[:1], ", "))
-			andConditions.WriteString(" ")
-		}
-	}
-
-	var orConditions strings.Builder
-	if len(q.orClauses) > 0 {
-		for i := range q.orClauses {
-			qq := q.andClauses[i]
-			orConditions.WriteString(strings.Join(qq[:1], ", "))
-			orConditions.WriteString(" ")
-		}
-	}
-
-	query := fmt.Sprintf("SELECT %s FROM %s %s %s %s", fields, q.tableName, q.whereClauses[0], andConditions.String(), orConditions.String())
-
+	whereConditions := ""
 	args := []any{}
-	if q.whereClauses[1] != "" {
-		args = append(args, q.whereClauses[1])
-	}
 
-	if len(q.andClauses) > 0 {
-		for i := range q.andClauses {
-			args = append(args, q.andClauses[i][1])
+	if len(q.whereClauses) > 0 {
+		whereConditions = "WHERE " + q.whereClauses[0]
+		for i := 1; i < len(q.whereClauses); i++ {
+			args = append(args, q.whereClauses[i])
 		}
 	}
 
-	if len(q.orClauses) > 0 {
-		for i := range q.orClauses {
-			args = append(args, q.orClauses[i][1])
-		}
-	}
+	query := fmt.Sprintf("SELECT %s FROM %s %s", fields, q.tableName, whereConditions)
 
 	rows, err := q.db.Query(query, args...)
 	return &QueryResult{Rows: rows}, err
 }
 
 func (q *QueryBuilder) handleDelete() (*QueryResult, error) {
-	var andConditions strings.Builder
-	if len(q.andClauses) > 0 {
-		for i := range q.andClauses {
-			qq := q.andClauses[i]
-			andConditions.WriteString(strings.Join(qq[:1], ", "))
-			andConditions.WriteString(" ")
-		}
-	}
-
-	var orConditions strings.Builder
-	if len(q.orClauses) > 0 {
-		for i := range q.orClauses {
-			qq := q.andClauses[i]
-			orConditions.WriteString(strings.Join(qq[:1], ", "))
-			orConditions.WriteString(" ")
-		}
-	}
-
-	query := fmt.Sprintf("DELETE FROM %s %s %s %s", q.tableName, q.whereClauses[0], andConditions.String(), orConditions.String())
-
+	whereConditions := ""
 	args := []any{}
-	if q.whereClauses[1] != "" {
-		args = append(args, q.whereClauses[1])
-	}
 
-	if len(q.andClauses) > 0 {
-		for i := range q.andClauses {
-			args = append(args, q.andClauses[i][1])
+	if len(q.whereClauses) > 0 {
+		whereConditions = "WHERE " + q.whereClauses[0]
+		for i := 1; i < len(q.whereClauses); i++ {
+			args = append(args, q.whereClauses[i])
 		}
 	}
 
-	if len(q.orClauses) > 0 {
-		for i := range q.orClauses {
-			args = append(args, q.orClauses[i][1])
-		}
-	}
+	query := fmt.Sprintf("DELETE FROM %s %s", q.tableName, whereConditions)
 
 	result, err := q.db.Exec(query, args...)
 	return &QueryResult{Result: result}, err
@@ -391,17 +325,4 @@ func (ub *UpdateBuilder) handleUpdate() (sql.Result, error) {
 	query := fmt.Sprintf("UPDATE %s SET %s WHERE %s", ub.tableName, setValues[:len(setValues)-2], whereClauses)
 
 	return ub.db.Exec(query, args...)
-}
-
-func main() {
-	norm := New("mysql", "root:1234@/income_expense")
-	defer norm.db.Close()
-
-	persons := norm.NewOrm("persons")
-	res, err := persons.Update().Set(map[string]interface{}{"lastName": "bob", "city": "fake city"}).Where("id > ? AND id < ? OR id = ?", "0", "100", "2").Exec()
-	if err != nil {
-		panic(err)
-	}
-
-	fmt.Println(res.RowsAffected())
 }
