@@ -1,4 +1,4 @@
-package main
+package nexom
 
 import (
 	"database/sql"
@@ -8,95 +8,9 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 )
 
-type Driver struct {
-	db *sql.DB
-}
-
-func New(driver string, details string) *Driver {
-	db, err := sql.Open(driver, details)
-	if err != nil {
-		panic(err)
-	}
-	return &Driver{db: db}
-}
-
-func (d *Driver) NewOrm(tableName string) *Orm {
-	return &Orm{qb: &QueryBuilder{tableName: tableName, db: d.db}}
-}
-
-type LevelOne interface {
-	Select(fields ...string) LevelTwo
-	Delete() LevelTwo
-	Drop() DropLevel
-	Insert(columns ...string) InsertSecondLevel
-	Update() UpdateSecondLevel
-}
-
-type LevelTwo interface {
-	Where(conditions ...string) LevelThree
-	Exec() (*QueryResult, error)
-}
-
-type LevelThree interface {
-	Exec() (*QueryResult, error)
-}
-
-type DropLevel interface {
-	Exec() (sql.Result, error)
-}
-
-type InsertSecondLevel interface {
-	Values(fields ...string) InsertThirdLevel
-}
-
-type InsertThirdLevel interface {
-	Exec() (sql.Result, error)
-}
-
-type UpdateSecondLevel interface {
-	Set(map[string]interface{}) UpdateThirdLevel
-}
-
-type UpdateThirdLevel interface {
-	Where(fields ...string) UpdateFourthLevel
-	Exec() (sql.Result, error)
-}
-
-type UpdateFourthLevel interface {
-	Exec() (sql.Result, error)
-}
-
 type QueryResult struct {
 	Rows   *sql.Rows
 	Result sql.Result
-}
-
-type QueryBuilder struct {
-	db        *sql.DB
-	queryType string
-
-	tableName    string
-	selectFields []string
-	whereClauses []string
-}
-
-type InsertBuilder struct {
-	db        *sql.DB
-	tableName string
-	columns   []string
-	values    []string
-}
-
-type UpdateBuilder struct {
-	db           *sql.DB
-	tableName    string
-	whereClauses []string
-	values       map[string]interface{}
-}
-
-// level 1
-type Orm struct {
-	qb *QueryBuilder
 }
 
 func (o *Orm) Select(fields ...string) LevelTwo {
