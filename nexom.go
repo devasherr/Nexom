@@ -158,6 +158,11 @@ func (ut *updateThirdLevel) Exec() (sql.Result, error) {
 	return ut.ub.handleUpdate()
 }
 
+func (ut *updateThirdLevel) ExecContext(ctx context.Context) (sql.Result, error) {
+	ut.ub.context = ctx
+	return ut.Exec()
+}
+
 // level 4
 type updateFourthLevel struct {
 	ub *UpdateBuilder
@@ -165,6 +170,11 @@ type updateFourthLevel struct {
 
 func (uf *updateFourthLevel) Exec() (sql.Result, error) {
 	return uf.ub.handleUpdate()
+}
+
+func (uf *updateFourthLevel) ExecContext(ctx context.Context) (sql.Result, error) {
+	uf.ub.context = ctx
+	return uf.Exec()
 }
 
 func (q *QueryBuilder) handleSelect() (*QueryResult, error) {
@@ -276,6 +286,10 @@ func (ub *UpdateBuilder) handleUpdate() (sql.Result, error) {
 
 	setValues := values.String()
 	query := fmt.Sprintf("UPDATE %s SET %s WHERE %s", ub.tableName, setValues[:len(setValues)-2], whereClauses)
+
+	if ub.context != nil {
+		return ub.db.ExecContext(ub.context, query, args...)
+	}
 
 	return ub.db.Exec(query, args...)
 }

@@ -45,8 +45,10 @@ type UpdateSecondLevel interface {
 type UpdateThirdLevel interface {
 	Where(fields ...string) UpdateFourthLevel
 	Exec() (sql.Result, error)
+	ExecContext(ctx context.Context) (sql.Result, error)
 }
 
 type UpdateFourthLevel interface {
 	Exec() (sql.Result, error)
+	ExecContext(ctx context.Context) (sql.Result, error)
 }

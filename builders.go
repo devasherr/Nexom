@@ -25,7 +25,9 @@ type InsertBuilder struct {
 }
 
 type UpdateBuilder struct {
-	db           *sql.DB
+	db      *sql.DB
+	context context.Context
+
 	tableName    string
 	whereClauses []string
 	values       map[string]interface{}
