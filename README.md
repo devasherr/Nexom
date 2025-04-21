@@ -92,6 +92,28 @@ result, err := users.Delete().Where("status = ? AND last_login < ?", "inactive",
 // Drop table
 result, err := users.Drop().Exec()
 ```
+# Context
+All operations support context for cancellation and timeouts:
+
+```go
+ctx, cancle := context.WithTimeout(context.Background(), 2*time.Second)
+defer cancle()
+
+// SELECT with context
+result, err := users.Select().Where("id = ?", "1").ExecContext(ctx)
+
+// INSERT with context
+result, err := users.Insert("name", "email").Values("John", "john@example.com").ExecContext(ctx)
+
+// UPDATE with context
+result, err := users.Update().Set(map[string]interface{}{"name": "John"}).Where("id = ?", "1").ExecContext(ctx)
+
+// DELETE with context
+result, err := users.Delete().Where("id = ?", "1").ExecContext(ctx)
+
+// DROP with context
+result, err := users.Drop().ExecContext(ctx)
+```
 
 ## CONTRIBUTIONS
 
