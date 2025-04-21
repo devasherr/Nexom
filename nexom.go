@@ -9,20 +9,13 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 )
 
-type QueryResult struct {
-	Rows   *sql.Rows
-	Result sql.Result
-}
-
-func (o *Orm) Select(fields ...string) LevelTwo {
-	o.qb.queryType = "select"
+func (o *Orm) Select(fields ...string) SelectSecondLevel {
 	o.qb.selectFields = fields
-	return &l2{qb: o.qb}
+	return &ss{qb: o.qb}
 }
 
-func (o *Orm) Delete() LevelTwo {
-	o.qb.queryType = "delete"
-	return &l2{qb: o.qb}
+func (o *Orm) Delete() DeleteSecondLevel {
+	return &ds{qb: o.qb}
 }
 
 func (o *Orm) Drop() DropLevel {
@@ -51,28 +44,40 @@ func (o *Orm) Update() UpdateSecondLevel {
 }
 
 // level 2
-type l2 struct {
+type ss struct {
 	qb *QueryBuilder
 }
 
-func (l *l2) Where(conditions ...string) LevelThree {
-	l.qb.whereClauses = conditions
-	return &l3{qb: l.qb}
+func (s *ss) Where(conditions ...string) SelectThirdLevel {
+	s.qb.whereClauses = conditions
+	return &st{qb: s.qb}
 }
 
-func (l *l2) Exec() (*QueryResult, error) {
-	if l.qb.queryType == "select" {
-		return l.qb.handleSelect()
-	} else if l.qb.queryType == "delete" {
-		return l.qb.handleDelete()
-	} else {
-		return &QueryResult{}, nil
-	}
+func (s *ss) Exec() (*sql.Rows, error) {
+	return s.qb.handleSelect()
 }
 
-func (l *l2) ExecContext(ctx context.Context) (*QueryResult, error) {
-	l.qb.context = ctx
-	return l.Exec()
+func (s *ss) ExecContext(ctx context.Context) (*sql.Rows, error) {
+	s.qb.context = ctx
+	return s.Exec()
+}
+
+type ds struct {
+	qb *QueryBuilder
+}
+
+func (d *ds) Where(conditions ...string) DeleteThirdLevel {
+	d.qb.whereClauses = conditions
+	return &dt{qb: d.qb}
+}
+
+func (d *ds) Exec() (sql.Result, error) {
+	return d.qb.handleDelete()
+}
+
+func (d *ds) ExecContext(ctx context.Context) (sql.Result, error) {
+	d.qb.context = ctx
+	return d.Exec()
 }
 
 type dropLevel struct {
@@ -113,23 +118,30 @@ func (us *updateSecondLevel) Set(values map[string]interface{}) UpdateThirdLevel
 }
 
 // level 3
-type l3 struct {
+type st struct {
 	qb *QueryBuilder
 }
 
-func (l *l3) Exec() (*QueryResult, error) {
-	if l.qb.queryType == "select" {
-		return l.qb.handleSelect()
-	} else if l.qb.queryType == "delete" {
-		return l.qb.handleDelete()
-	} else {
-		return &QueryResult{}, nil
-	}
+func (s *st) Exec() (*sql.Rows, error) {
+	return s.qb.handleSelect()
 }
 
-func (l *l3) ExecContext(ctx context.Context) (*QueryResult, error) {
-	l.qb.context = ctx
-	return l.Exec()
+func (s *st) ExecContext(ctx context.Context) (*sql.Rows, error) {
+	s.qb.context = ctx
+	return s.Exec()
+}
+
+type dt struct {
+	qb *QueryBuilder
+}
+
+func (d *dt) Exec() (sql.Result, error) {
+	return d.qb.handleDelete()
+}
+
+func (d *dt) ExecContext(ctx context.Context) (sql.Result, error) {
+	d.qb.context = ctx
+	return d.Exec()
 }
 
 type insertThirdLevel struct {
@@ -177,7 +189,7 @@ func (uf *updateFourthLevel) ExecContext(ctx context.Context) (sql.Result, error
 	return uf.Exec()
 }
 
-func (q *QueryBuilder) handleSelect() (*QueryResult, error) {
+func (q *QueryBuilder) handleSelect() (*sql.Rows, error) {
 	fields := "*"
 	if len(q.selectFields) > 0 {
 		fields = strings.Join(q.selectFields, ", ")
@@ -196,15 +208,13 @@ func (q *QueryBuilder) handleSelect() (*QueryResult, error) {
 	query := fmt.Sprintf("SELECT %s FROM %s %s", fields, q.tableName, whereConditions)
 
 	if q.context != nil {
-		rows, err := q.db.QueryContext(q.context, query, args...)
-		return &QueryResult{Rows: rows}, err
+		return q.db.QueryContext(q.context, query, args...)
 	}
 
-	rows, err := q.db.Query(query, args...)
-	return &QueryResult{Rows: rows}, err
+	return q.db.Query(query, args...)
 }
 
-func (q *QueryBuilder) handleDelete() (*QueryResult, error) {
+func (q *QueryBuilder) handleDelete() (sql.Result, error) {
 	whereConditions := ""
 	args := []any{}
 
@@ -218,12 +228,10 @@ func (q *QueryBuilder) handleDelete() (*QueryResult, error) {
 	query := fmt.Sprintf("DELETE FROM %s %s", q.tableName, whereConditions)
 
 	if q.context != nil {
-		rows, err := q.db.QueryContext(q.context, query, args...)
-		return &QueryResult{Rows: rows}, err
+		return q.db.ExecContext(q.context, query, args...)
 	}
 
-	result, err := q.db.Exec(query, args...)
-	return &QueryResult{Result: result}, err
+	return q.db.Exec(query, args...)
 }
 
 func (d *dropLevel) handleDrop() (sql.Result, error) {

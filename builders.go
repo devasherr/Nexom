@@ -6,9 +6,8 @@ import (
 )
 
 type QueryBuilder struct {
-	db        *sql.DB
-	queryType string
-	context   context.Context
+	db      *sql.DB
+	context context.Context
 
 	tableName    string
 	selectFields []string
