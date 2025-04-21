@@ -7,7 +7,7 @@ import (
 )
 
 type Driver struct {
-	db *sql.DB
+	DB *sql.DB
 }
 
 func New(driver string, details string) *Driver {
@@ -15,11 +15,11 @@ func New(driver string, details string) *Driver {
 	if err != nil {
 		panic(err)
 	}
-	return &Driver{db: db}
+	return &Driver{DB: db}
 }
 
 func (d *Driver) NewOrm(tableName string) *Orm {
-	return &Orm{qb: &QueryBuilder{tableName: tableName, db: d.db}}
+	return &Orm{qb: &QueryBuilder{tableName: tableName, db: d.DB}}
 }
 
 type Orm struct {

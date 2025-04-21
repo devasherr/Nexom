@@ -1,6 +1,8 @@
 package nexom
 
-import "database/sql"
+import (
+	"database/sql"
+)
 
 type QueryBuilder struct {
 	db        *sql.DB

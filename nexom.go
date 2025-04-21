@@ -1,6 +1,7 @@
 package nexom
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"strings"
@@ -69,6 +70,16 @@ func (l *l2) Exec() (*QueryResult, error) {
 	}
 }
 
+func (l *l2) ExecContext(ctx context.Context) (*QueryResult, error) {
+	if l.qb.queryType == "select" {
+		return l.qb.handleSelectWithContext(ctx)
+	} else if l.qb.queryType == "delete" {
+		return l.qb.handleDeleteWithContext(ctx)
+	} else {
+		return &QueryResult{}, nil
+	}
+}
+
 type dropLevel struct {
 	qb *QueryBuilder
 }
@@ -111,6 +122,16 @@ func (l *l3) Exec() (*QueryResult, error) {
 		return l.qb.handleSelect()
 	} else if l.qb.queryType == "delete" {
 		return l.qb.handleDelete()
+	} else {
+		return &QueryResult{}, nil
+	}
+}
+
+func (l *l3) ExecContext(ctx context.Context) (*QueryResult, error) {
+	if l.qb.queryType == "select" {
+		return l.qb.handleSelectWithContext(ctx)
+	} else if l.qb.queryType == "delete" {
+		return l.qb.handleDeleteWithContext(ctx)
 	} else {
 		return &QueryResult{}, nil
 	}
@@ -168,6 +189,28 @@ func (q *QueryBuilder) handleSelect() (*QueryResult, error) {
 	return &QueryResult{Rows: rows}, err
 }
 
+func (q *QueryBuilder) handleSelectWithContext(ctx context.Context) (*QueryResult, error) {
+	fields := "*"
+	if len(q.selectFields) > 0 {
+		fields = strings.Join(q.selectFields, ", ")
+	}
+
+	whereConditions := ""
+	args := []any{}
+
+	if len(q.whereClauses) > 0 {
+		whereConditions = "WHERE " + q.whereClauses[0]
+		for i := 1; i < len(q.whereClauses); i++ {
+			args = append(args, q.whereClauses[i])
+		}
+	}
+
+	query := fmt.Sprintf("SELECT %s FROM %s %s", fields, q.tableName, whereConditions)
+
+	rows, err := q.db.QueryContext(ctx, query, args...)
+	return &QueryResult{Rows: rows}, err
+}
+
 func (q *QueryBuilder) handleDelete() (*QueryResult, error) {
 	whereConditions := ""
 	args := []any{}
@@ -185,6 +228,22 @@ func (q *QueryBuilder) handleDelete() (*QueryResult, error) {
 	return &QueryResult{Result: result}, err
 }
 
+func (q *QueryBuilder) handleDeleteWithContext(ctx context.Context) (*QueryResult, error) {
+	whereConditions := ""
+	args := []any{}
+
+	if len(q.whereClauses) > 0 {
+		whereConditions = "WHERE " + q.whereClauses[0]
+		for i := 1; i < len(q.whereClauses); i++ {
+			args = append(args, q.whereClauses[i])
+		}
+	}
+
+	query := fmt.Sprintf("DELETE FROM %s %s", q.tableName, whereConditions)
+
+	result, err := q.db.ExecContext(ctx, query, args...)
+	return &QueryResult{Result: result}, err
+}
 func (d *dropLevel) handleDrop() (sql.Result, error) {
 	query := fmt.Sprintf("DROP TABLE IF EXISTS %s", d.qb.tableName)
 	return d.qb.db.Exec(query)

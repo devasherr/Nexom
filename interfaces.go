@@ -1,6 +1,9 @@
 package nexom
 
-import "database/sql"
+import (
+	"context"
+	"database/sql"
+)
 
 type LevelOne interface {
 	Select(fields ...string) LevelTwo
@@ -13,10 +16,12 @@ type LevelOne interface {
 type LevelTwo interface {
 	Where(conditions ...string) LevelThree
 	Exec() (*QueryResult, error)
+	ExecContext(ctx context.Context) (*QueryResult, error)
 }
 
 type LevelThree interface {
 	Exec() (*QueryResult, error)
+	ExecContext(ctx context.Context) (*QueryResult, error)
 }
 
 type DropLevel interface {
