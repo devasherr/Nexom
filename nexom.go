@@ -334,13 +334,18 @@ func (ub *UpdateBuilder) handleUpdate() (sql.Result, error) {
 }
 
 func (cb *CreateBuilder) handleCreateTable() (sql.Result, error) {
-	// TODO: do this with a string builder
-	tableDefinition := ""
+	var sb strings.Builder
 	for key := range cb.values {
-		tableDefinition += fmt.Sprintf("%s %s, ", key, cb.values[key])
+		sb.WriteString(fmt.Sprintf("%s %s, ", key, cb.values[key]))
 	}
 
-	query := fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (%s)", cb.tableName, tableDefinition[:len(tableDefinition)-2])
+	tableDefinition := sb.String()
+	if len(tableDefinition) > 0 {
+		tableDefinition = "(" + tableDefinition[:len(tableDefinition)-2] + ")"
+	}
+
+	query := fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s %s", cb.tableName, tableDefinition)
+
 	if cb.context != nil {
 		return cb.db.ExecContext(cb.context, query)
 	}
