@@ -23,12 +23,13 @@ go get github.com/devasherr/nexom
 package main
 
 import (
+    "github.com/devasherr/nexom"
     _ "github.com/go-sql-driver/mysql"
 )
 
 func main() {
     // Initialize the driver
-    norm := New("mysql", "username:password@/dbname")
+    norm := nexom.New("mysql", "username:password@/dbname")
     defer norm.db.Close()
 
     // Create an ORM instance for a table
@@ -96,8 +97,8 @@ result, err := users.Drop().Exec()
 All operations support context for cancellation and timeouts:
 
 ```go
-ctx, cancle := context.WithTimeout(context.Background(), 2*time.Second)
-defer cancle()
+ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+defer cancel()
 
 // SELECT with context
 result, err := users.Select().Where("id = ?", "1").ExecContext(ctx)
