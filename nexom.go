@@ -9,6 +9,37 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 )
 
+func (d *Driver) CreateTable(tableName string) CreateSecondLevel {
+	cb := &CreateBuilder{
+		db:        d.DB,
+		tableName: tableName,
+	}
+
+	return &cs{cb: cb}
+}
+
+func (c *cs) Values(values map[string]interface{}) CreateThirdLevel {
+	c.cb.values = values
+	return &ct{cb: c.cb}
+}
+
+type ct struct {
+	cb *CreateBuilder
+}
+
+func (c *ct) Exec() (sql.Result, error) {
+	return c.cb.handleCreateTable()
+}
+
+func (c *ct) ExecContext(ctx context.Context) (sql.Result, error) {
+	c.cb.context = ctx
+	return c.cb.handleCreateTable()
+}
+
+type cs struct {
+	cb *CreateBuilder
+}
+
 func (o *Orm) Select(fields ...string) SelectSecondLevel {
 	o.qb.selectFields = fields
 	return &ss{qb: o.qb}
@@ -300,4 +331,19 @@ func (ub *UpdateBuilder) handleUpdate() (sql.Result, error) {
 	}
 
 	return ub.db.Exec(query, args...)
+}
+
+func (cb *CreateBuilder) handleCreateTable() (sql.Result, error) {
+	// TODO: do this with a string builder
+	tableDefinition := ""
+	for key := range cb.values {
+		tableDefinition += fmt.Sprintf("%s %s, ", key, cb.values[key])
+	}
+
+	query := fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (%s)", cb.tableName, tableDefinition[:len(tableDefinition)-2])
+	if cb.context != nil {
+		return cb.db.ExecContext(cb.context, query)
+	}
+
+	return cb.db.Exec(query)
 }

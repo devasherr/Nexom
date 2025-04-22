@@ -31,3 +31,11 @@ type UpdateBuilder struct {
 	whereClauses []string
 	values       map[string]interface{}
 }
+
+type CreateBuilder struct {
+	db      *sql.DB
+	context context.Context
+
+	tableName string
+	values    map[string]interface{}
+}

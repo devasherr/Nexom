@@ -5,6 +5,15 @@ import (
 	"database/sql"
 )
 
+type CreateSecondLevel interface {
+	Values(values map[string]interface{}) CreateThirdLevel
+}
+
+type CreateThirdLevel interface {
+	Exec() (sql.Result, error)
+	ExecContext(ctx context.Context) (sql.Result, error)
+}
+
 type LevelOne interface {
 	Select(fields ...string) SelectSecondLevel
 	Delete() DeleteSecondLevel
