@@ -5,8 +5,10 @@ import (
 	"database/sql"
 )
 
+type M map[string]interface{}
+
 type CreateSecondLevel interface {
-	Values(values map[string]interface{}) CreateThirdLevel
+	Values(values M) CreateThirdLevel
 }
 
 type CreateThirdLevel interface {
@@ -59,7 +61,7 @@ type InsertThirdLevel interface {
 }
 
 type UpdateSecondLevel interface {
-	Set(map[string]interface{}) UpdateThirdLevel
+	Set(M) UpdateThirdLevel
 }
 
 type UpdateThirdLevel interface {
