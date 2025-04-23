@@ -62,7 +62,7 @@ result, err := users.Insert("name", "email", "age").Values("John Doe", "john@exa
 ```go
 // Update with SET and WHERE
 result, err := users.Update().
-    Set(map[string]interface{}{
+    Set(nexom.M{
         "name": "Jane Doe",
         "email": "jane@example.com",
     }).
@@ -71,7 +71,7 @@ result, err := users.Update().
 
 // Update with multiple conditions
 result, err := users.Update().
-    Set(map[string]interface{}{
+    Set(nexom.M{
         "status": "inactive",
     }).
     Where("last_login = ? AND active = ? OR banned = ?", "< 2023-01-01", "false", "true").Exec()
@@ -107,7 +107,7 @@ result, err := users.Select().Where("id = ?", "1").ExecContext(ctx)
 result, err := users.Insert("name", "email").Values("John", "john@example.com").ExecContext(ctx)
 
 // UPDATE with context
-result, err := users.Update().Set(map[string]interface{}{"name": "John"}).Where("id = ?", "1").ExecContext(ctx)
+result, err := users.Update().Set(nexom.M{"name": "John"}).Where("id = ?", "1").ExecContext(ctx)
 
 // DELETE with context
 result, err := users.Delete().Where("id = ?", "1").ExecContext(ctx)

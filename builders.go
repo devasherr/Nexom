@@ -29,7 +29,7 @@ type UpdateBuilder struct {
 
 	tableName    string
 	whereClauses []string
-	values       map[string]interface{}
+	values      M 
 }
 
 type CreateBuilder struct {
@@ -37,5 +37,5 @@ type CreateBuilder struct {
 	context context.Context
 
 	tableName string
-	values    map[string]interface{}
+	values    M
 }

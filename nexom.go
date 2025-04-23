@@ -18,7 +18,7 @@ func (d *Driver) CreateTable(tableName string) CreateSecondLevel {
 	return &cs{cb: cb}
 }
 
-func (c *cs) Values(values map[string]interface{}) CreateThirdLevel {
+func (c *cs) Values(values M) CreateThirdLevel {
 	c.cb.values = values
 	return &ct{cb: c.cb}
 }
@@ -68,7 +68,7 @@ func (o *Orm) Update() UpdateSecondLevel {
 		db:           o.qb.db,
 		tableName:    o.qb.tableName,
 		whereClauses: []string{},
-		values:       map[string]interface{}{},
+		values:       M{},
 	}
 
 	return &updateSecondLevel{ub: ub}
@@ -143,7 +143,7 @@ type updateSecondLevel struct {
 	ub *UpdateBuilder
 }
 
-func (us *updateSecondLevel) Set(values map[string]interface{}) UpdateThirdLevel {
+func (us *updateSecondLevel) Set(values M) UpdateThirdLevel {
 	us.ub.values = values
 	return &updateThirdLevel{ub: us.ub}
 }
