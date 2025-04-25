@@ -128,7 +128,7 @@ type insertSecondLevel struct {
 	ib *InsertBuilder
 }
 
-func (is *insertSecondLevel) Values(values [][]string) InsertThirdLevel {
+func (is *insertSecondLevel) Values(values V) InsertThirdLevel {
 	ib := &InsertBuilder{
 		db:        is.ib.db,
 		tableName: is.ib.tableName,

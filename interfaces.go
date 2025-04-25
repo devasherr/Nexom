@@ -6,6 +6,7 @@ import (
 )
 
 type M map[string]interface{}
+type V [][]string
 
 type CreateSecondLevel interface {
 	Values(values M) CreateThirdLevel
@@ -52,7 +53,7 @@ type DropLevel interface {
 }
 
 type InsertSecondLevel interface {
-	Values(values [][]string) InsertThirdLevel
+	Values(values V) InsertThirdLevel
 }
 
 type InsertThirdLevel interface {

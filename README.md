@@ -55,7 +55,7 @@ result, err := users.Select("name", "email").Where("status = ? AND age > ? OR cr
 ```go
 // Insert with columns and values
 result, err := users.Insert("name", "email", "age").Values(
-    [][]string{
+    nexom.V{
         {"John Doe", "john@example.com", "30"},
         {"Alice Johnson", "alice@example.com", "28"},
         {"Bob Williams", "bob@example.com", "35"}
