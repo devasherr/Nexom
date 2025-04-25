@@ -20,7 +20,7 @@ type InsertBuilder struct {
 
 	tableName string
 	columns   []string
-	values    []string
+	values    [][]string
 }
 
 type UpdateBuilder struct {
@@ -29,7 +29,7 @@ type UpdateBuilder struct {
 
 	tableName    string
 	whereClauses []string
-	values      M 
+	values       M
 }
 
 type CreateBuilder struct {

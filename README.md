@@ -54,7 +54,12 @@ result, err := users.Select("name", "email").Where("status = ? AND age > ? OR cr
 
 ```go
 // Insert with columns and values
-result, err := users.Insert("name", "email", "age").Values("John Doe", "john@example.com", "30").Exec()
+result, err := users.Insert("name", "email", "age").Values(
+    [][]string{
+        {"John Doe", "john@example.com", "30"},
+        {"Alice Johnson", "alice@example.com", "28"},
+        {"Bob Williams", "bob@example.com", "35"}
+    }).Exec()
 ```
 
 ### UPDATE Queries
@@ -93,7 +98,9 @@ result, err := users.Delete().Where("status = ? AND last_login < ?", "inactive",
 // Drop table
 result, err := users.Drop().Exec()
 ```
+
 # Context
+
 All operations support context for cancellation and timeouts:
 
 ```go

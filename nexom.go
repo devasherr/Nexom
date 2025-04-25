@@ -128,7 +128,7 @@ type insertSecondLevel struct {
 	ib *InsertBuilder
 }
 
-func (is *insertSecondLevel) Values(values ...string) InsertThirdLevel {
+func (is *insertSecondLevel) Values(values [][]string) InsertThirdLevel {
 	ib := &InsertBuilder{
 		db:        is.ib.db,
 		tableName: is.ib.tableName,
@@ -280,21 +280,29 @@ func (ib *InsertBuilder) handleInsert() (sql.Result, error) {
 		insertColumns = "(" + strings.Join(ib.columns, ", ") + ")"
 	}
 
-	insertValues := ""
-	protectedValues := make([]string, len(ib.values))
-	for i := range ib.values {
-		protectedValues[i] = "?"
+	var insertValues strings.Builder
+	for i := range len(ib.values) {
+		curVal := []string{}
+		for range len(ib.values[i]) {
+			curVal = append(curVal, "?")
+		}
+
+		insertValues.WriteString("(" + strings.Join(curVal, ", ") + "), ")
 	}
 
-	if len(ib.values) > 0 {
-		insertValues = "(" + strings.Join(protectedValues, ", ") + ")"
+	// users should make sure of this, but
+	// helps index out of bound error when insertValues is empty
+	if insertValues.Len() == 0 {
+		insertValues.WriteString("  ")
 	}
 
-	query := fmt.Sprintf("INSERT INTO %s %s VALUES %s", ib.tableName, insertColumns, insertValues)
+	query := fmt.Sprintf("INSERT INTO %s %s VALUES %s", ib.tableName, insertColumns, insertValues.String()[:insertValues.Len()-2])
 	args := []any{}
 	if len(ib.values) > 0 {
 		for i := range ib.values {
-			args = append(args, ib.values[i])
+			for j := range ib.values[i] {
+				args = append(args, ib.values[i][j])
+			}
 		}
 	}
 

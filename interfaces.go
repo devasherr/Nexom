@@ -52,7 +52,7 @@ type DropLevel interface {
 }
 
 type InsertSecondLevel interface {
-	Values(fields ...string) InsertThirdLevel
+	Values(values [][]string) InsertThirdLevel
 }
 
 type InsertThirdLevel interface {
