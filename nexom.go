@@ -84,8 +84,16 @@ func (s *ss) Where(conditions ...string) SelectThirdLevel {
 	return &st{qb: s.qb}
 }
 
+func (s *ss) Log() (string, []any) {
+	return s.qb.Log()
+}
+
 func (s *ss) Exec() (*sql.Rows, error) {
-	return s.qb.handleSelect()
+	query, args := s.Log()
+	if s.qb.context != nil {
+		s.qb.db.QueryContext(s.qb.context, query, args...)
+	}
+	return s.qb.db.Query(query, args...)
 }
 
 func (s *ss) ExecContext(ctx context.Context) (*sql.Rows, error) {
@@ -153,8 +161,16 @@ type st struct {
 	qb *QueryBuilder
 }
 
+func (s *st) Log() (string, []any) {
+	return s.qb.Log()
+}
+
 func (s *st) Exec() (*sql.Rows, error) {
-	return s.qb.handleSelect()
+	query, args := s.Log()
+	if s.qb.context != nil {
+		s.qb.db.QueryContext(s.qb.context, query, args...)
+	}
+	return s.qb.db.Query(query, args...)
 }
 
 func (s *st) ExecContext(ctx context.Context) (*sql.Rows, error) {
@@ -220,24 +236,7 @@ func (uf *updateFourthLevel) ExecContext(ctx context.Context) (sql.Result, error
 	return uf.Exec()
 }
 
-func (q *QueryBuilder) handleSelect() (*sql.Rows, error) {
-	fields := "*"
-	if len(q.selectFields) > 0 {
-		fields = strings.Join(q.selectFields, ", ")
-	}
-
-	whereConditions := ""
-	args := []any{}
-
-	if len(q.whereClauses) > 0 {
-		whereConditions = "WHERE " + q.whereClauses[0]
-		for i := 1; i < len(q.whereClauses); i++ {
-			args = append(args, q.whereClauses[i])
-		}
-	}
-
-	query := fmt.Sprintf("SELECT %s FROM %s %s", fields, q.tableName, whereConditions)
-
+func (q *QueryBuilder) handleSelect(query string, args []any) (*sql.Rows, error) {
 	if q.context != nil {
 		return q.db.QueryContext(q.context, query, args...)
 	}

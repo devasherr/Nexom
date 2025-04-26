@@ -111,7 +111,7 @@ defer cancel()
 result, err := users.Select().Where("id = ?", "1").ExecContext(ctx)
 
 // INSERT with context
-result, err := users.Insert("name", "email").Values("John", "john@example.com").ExecContext(ctx)
+result, err := users.Insert("name", "email").Values(nexom.V{{"John", "john@example.com"}}).ExecContext(ctx)
 
 // UPDATE with context
 result, err := users.Update().Set(nexom.M{"name": "John"}).Where("id = ?", "1").ExecContext(ctx)

@@ -27,11 +27,13 @@ type LevelOne interface {
 
 type SelectSecondLevel interface {
 	Where(conditions ...string) SelectThirdLevel
+	Log() (string, []any)
 	Exec() (*sql.Rows, error)
 	ExecContext(ctx context.Context) (*sql.Rows, error)
 }
 
 type SelectThirdLevel interface {
+	Log() (string, []any)
 	Exec() (*sql.Rows, error)
 	ExecContext(ctx context.Context) (*sql.Rows, error)
 }
