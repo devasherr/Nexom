@@ -79,6 +79,31 @@ type ss struct {
 	qb *QueryBuilder
 }
 
+// select modifier (join)
+type sm struct {
+	qb *QueryBuilder
+}
+
+func (s *sm) On(conditions string) SelectSecondLevel {
+	s.qb.joinStatement += "ON " + conditions
+	return &ss{qb: s.qb}
+}
+
+func (s *ss) Join(tableName string) SelectModifier {
+	s.qb.joinStatement = "JOIN " + tableName + " "
+	return &sm{qb: s.qb}
+}
+
+func (s *ss) JoinLeft(tableName string) SelectModifier {
+	s.qb.joinStatement = "LEFT JOIN " + tableName + " "
+	return &sm{qb: s.qb}
+}
+
+func (s *ss) JoinRight(tableName string) SelectModifier {
+	s.qb.joinStatement = "RIGHT JOIN " + tableName + " "
+	return &sm{qb: s.qb}
+}
+
 func (s *ss) Where(conditions ...string) SelectThirdLevel {
 	s.qb.whereClauses = conditions
 	return &st{qb: s.qb}

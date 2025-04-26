@@ -26,10 +26,18 @@ type LevelOne interface {
 }
 
 type SelectSecondLevel interface {
+	Join(tableName string) SelectModifier
+	JoinLeft(tableName string) SelectModifier
+	JoinRight(tableName string) SelectModifier
+
 	Where(conditions ...string) SelectThirdLevel
 	Log() (string, []any)
 	Exec() (*sql.Rows, error)
 	ExecContext(ctx context.Context) (*sql.Rows, error)
+}
+
+type SelectModifier interface {
+	On(conditions string) SelectSecondLevel
 }
 
 type SelectThirdLevel interface {

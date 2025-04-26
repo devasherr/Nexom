@@ -11,9 +11,10 @@ type QueryBuilder struct {
 	db      *sql.DB
 	context context.Context
 
-	tableName    string
-	selectFields []string
-	whereClauses []string
+	tableName     string
+	selectFields  []string
+	whereClauses  []string
+	joinStatement string
 }
 
 type InsertBuilder struct {
@@ -58,7 +59,7 @@ func (qb *QueryBuilder) SelectQuery() (string, []any) {
 		}
 	}
 
-	query := fmt.Sprintf("SELECT %s FROM %s %s", fields, qb.tableName, whereConditions)
+	query := fmt.Sprintf("SELECT %s FROM %s %s %s", fields, qb.tableName, qb.joinStatement, whereConditions)
 	return query, args
 }
 
