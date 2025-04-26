@@ -11,10 +11,12 @@ type QueryBuilder struct {
 	db      *sql.DB
 	context context.Context
 
-	tableName     string
-	selectFields  []string
-	whereClauses  []string
+	tableName    string
+	selectFields []string
+	whereClauses []string
+
 	joinStatement string
+	orderFields   []string
 }
 
 type InsertBuilder struct {
@@ -59,7 +61,12 @@ func (qb *QueryBuilder) SelectQuery() (string, []any) {
 		}
 	}
 
-	query := fmt.Sprintf("SELECT %s FROM %s %s %s", fields, qb.tableName, qb.joinStatement, whereConditions)
+	orderFields := ""
+	if len(qb.orderFields) > 0 {
+		orderFields = "ORDER BY " + strings.Join(qb.orderFields, ", ")
+	}
+
+	query := fmt.Sprintf("SELECT %s FROM %s %s %s %s", fields, qb.tableName, qb.joinStatement, whereConditions, orderFields)
 	return query, args
 }
 

@@ -41,6 +41,13 @@ type SelectModifier interface {
 }
 
 type SelectThirdLevel interface {
+	Order(fields ...string) SelectFourthLevel
+	Log() (string, []any)
+	Exec() (*sql.Rows, error)
+	ExecContext(ctx context.Context) (*sql.Rows, error)
+}
+
+type SelectFourthLevel interface {
 	Log() (string, []any)
 	Exec() (*sql.Rows, error)
 	ExecContext(ctx context.Context) (*sql.Rows, error)

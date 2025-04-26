@@ -40,6 +40,14 @@ type cs struct {
 	cb *CreateBuilder
 }
 
+func (o *Orm) ASC(value string) string {
+	return "ASC " + value
+}
+
+func (o *Orm) DESC(value string) string {
+	return "DESC " + value
+}
+
 func (o *Orm) Select(fields ...string) SelectSecondLevel {
 	o.qb.selectFields = fields
 	return &ss{qb: o.qb}
@@ -208,6 +216,11 @@ func (s *st) Log() (string, []any) {
 	return s.qb.SelectQuery()
 }
 
+func (s *st) Order(fields ...string) SelectFourthLevel {
+	s.qb.orderFields = fields
+	return &sf{qb: s.qb}
+}
+
 func (s *st) Exec() (*sql.Rows, error) {
 	query, args := s.Log()
 	if s.qb.context != nil {
@@ -296,6 +309,29 @@ func (ut *updateThirdLevel) ExecContext(ctx context.Context) (sql.Result, error)
 }
 
 // level 4
+type sf struct {
+	qb *QueryBuilder
+}
+
+func (s *sf) Log() (string, []any) {
+	return s.qb.SelectQuery()
+}
+
+func (s *sf) Exec() (*sql.Rows, error) {
+	query, args := s.qb.SelectQuery()
+
+	if s.qb.context != nil {
+		return s.qb.db.QueryContext(s.qb.context, query, args...)
+	}
+
+	return s.qb.db.Query(query, args...)
+}
+
+func (s *sf) ExecContext(context context.Context) (*sql.Rows, error) {
+	s.qb.context = context
+	return s.Exec()
+}
+
 type updateFourthLevel struct {
 	ub *UpdateBuilder
 }
