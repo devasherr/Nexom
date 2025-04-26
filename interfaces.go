@@ -72,11 +72,13 @@ type UpdateSecondLevel interface {
 
 type UpdateThirdLevel interface {
 	Where(fields ...string) UpdateFourthLevel
+	Log() (string, []any)
 	Exec() (sql.Result, error)
 	ExecContext(ctx context.Context) (sql.Result, error)
 }
 
 type UpdateFourthLevel interface {
+	Log() (string, []any)
 	Exec() (sql.Result, error)
 	ExecContext(ctx context.Context) (sql.Result, error)
 }

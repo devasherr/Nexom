@@ -111,3 +111,27 @@ func (ib *InsertBuilder) InsertQuery() (string, []any) {
 
 	return query, args
 }
+
+func (ub *UpdateBuilder) UpdateQuery() (string, []any) {
+	var values strings.Builder
+	args := []any{}
+	for key, val := range ub.values {
+		values.WriteString(key + " = ?, ")
+		args = append(args, val)
+	}
+
+	whereClauses := ""
+	for i := range ub.whereClauses {
+		if i == 0 {
+			whereClauses = ub.whereClauses[i]
+			continue
+		}
+
+		args = append(args, ub.whereClauses[i])
+	}
+
+	setValues := values.String()
+	query := fmt.Sprintf("UPDATE %s SET %s WHERE %s", ub.tableName, setValues[:len(setValues)-2], whereClauses)
+
+	return query, args
+}

@@ -242,8 +242,18 @@ func (ut *updateThirdLevel) Where(fields ...string) UpdateFourthLevel {
 	return &updateFourthLevel{ub: ut.ub}
 }
 
+func (ut *updateThirdLevel) Log() (string, []any) {
+	return ut.ub.UpdateQuery()
+}
+
 func (ut *updateThirdLevel) Exec() (sql.Result, error) {
-	return ut.ub.handleUpdate()
+	query, args := ut.Log()
+
+	if ut.ub.context != nil {
+		return ut.ub.db.ExecContext(ut.ub.context, query, args...)
+	}
+
+	return ut.ub.db.Exec(query, args...)
 }
 
 func (ut *updateThirdLevel) ExecContext(ctx context.Context) (sql.Result, error) {
@@ -256,8 +266,18 @@ type updateFourthLevel struct {
 	ub *UpdateBuilder
 }
 
+func (uf *updateFourthLevel) Log() (string, []any) {
+	return uf.ub.UpdateQuery()
+}
+
 func (uf *updateFourthLevel) Exec() (sql.Result, error) {
-	return uf.ub.handleUpdate()
+	query, args := uf.Log()
+
+	if uf.ub.context != nil {
+		return uf.ub.db.ExecContext(uf.ub.context, query, args...)
+	}
+
+	return uf.ub.db.Exec(query, args...)
 }
 
 func (uf *updateFourthLevel) ExecContext(ctx context.Context) (sql.Result, error) {
@@ -280,34 +300,6 @@ func (d *dropLevel) handleDrop() (sql.Result, error) {
 	}
 
 	return d.qb.db.Exec(query)
-}
-
-func (ub *UpdateBuilder) handleUpdate() (sql.Result, error) {
-	var values strings.Builder
-	args := []any{}
-	for key, val := range ub.values {
-		values.WriteString(key + " = ?, ")
-		args = append(args, val)
-	}
-
-	whereClauses := ""
-	for i := range ub.whereClauses {
-		if i == 0 {
-			whereClauses = ub.whereClauses[i]
-			continue
-		}
-
-		args = append(args, ub.whereClauses[i])
-	}
-
-	setValues := values.String()
-	query := fmt.Sprintf("UPDATE %s SET %s WHERE %s", ub.tableName, setValues[:len(setValues)-2], whereClauses)
-
-	if ub.context != nil {
-		return ub.db.ExecContext(ub.context, query, args...)
-	}
-
-	return ub.db.Exec(query, args...)
 }
 
 func (cb *CreateBuilder) handleCreateTable() (sql.Result, error) {
