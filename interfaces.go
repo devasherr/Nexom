@@ -40,11 +40,13 @@ type SelectThirdLevel interface {
 
 type DeleteSecondLevel interface {
 	Where(conditions ...string) DeleteThirdLevel
+	Log() (string, []any)
 	Exec() (sql.Result, error)
 	ExecContext(ctx context.Context) (sql.Result, error)
 }
 
 type DeleteThirdLevel interface {
+	Log() (string, []any)
 	Exec() (sql.Result, error)
 	ExecContext(ctx context.Context) (sql.Result, error)
 }

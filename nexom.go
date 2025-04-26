@@ -85,7 +85,7 @@ func (s *ss) Where(conditions ...string) SelectThirdLevel {
 }
 
 func (s *ss) Log() (string, []any) {
-	return s.qb.Log()
+	return s.qb.SelectQuery()
 }
 
 func (s *ss) Exec() (*sql.Rows, error) {
@@ -110,8 +110,17 @@ func (d *ds) Where(conditions ...string) DeleteThirdLevel {
 	return &dt{qb: d.qb}
 }
 
+func (d *ds) Log() (string, []any) {
+	return d.qb.DeleteQuery()
+}
+
 func (d *ds) Exec() (sql.Result, error) {
-	return d.qb.handleDelete()
+	query, args := d.Log()
+	if d.qb.context != nil {
+		return d.qb.db.ExecContext(d.qb.context, query, args...)
+	}
+
+	return d.qb.db.Exec(query, args...)
 }
 
 func (d *ds) ExecContext(ctx context.Context) (sql.Result, error) {
@@ -162,7 +171,7 @@ type st struct {
 }
 
 func (s *st) Log() (string, []any) {
-	return s.qb.Log()
+	return s.qb.SelectQuery()
 }
 
 func (s *st) Exec() (*sql.Rows, error) {
@@ -182,8 +191,18 @@ type dt struct {
 	qb *QueryBuilder
 }
 
+func (d *dt) Log() (string, []any) {
+	return d.qb.DeleteQuery()
+}
+
 func (d *dt) Exec() (sql.Result, error) {
-	return d.qb.handleDelete()
+	query, args := d.Log()
+
+	if d.qb.context != nil {
+		return d.qb.db.ExecContext(d.qb.context, query, args...)
+	}
+
+	return d.qb.db.Exec(query, args...)
 }
 
 func (d *dt) ExecContext(ctx context.Context) (sql.Result, error) {
@@ -242,26 +261,6 @@ func (q *QueryBuilder) handleSelect(query string, args []any) (*sql.Rows, error)
 	}
 
 	return q.db.Query(query, args...)
-}
-
-func (q *QueryBuilder) handleDelete() (sql.Result, error) {
-	whereConditions := ""
-	args := []any{}
-
-	if len(q.whereClauses) > 0 {
-		whereConditions = "WHERE " + q.whereClauses[0]
-		for i := 1; i < len(q.whereClauses); i++ {
-			args = append(args, q.whereClauses[i])
-		}
-	}
-
-	query := fmt.Sprintf("DELETE FROM %s %s", q.tableName, whereConditions)
-
-	if q.context != nil {
-		return q.db.ExecContext(q.context, query, args...)
-	}
-
-	return q.db.Exec(query, args...)
 }
 
 func (d *dropLevel) handleDrop() (sql.Result, error) {
