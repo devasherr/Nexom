@@ -61,6 +61,7 @@ type InsertSecondLevel interface {
 }
 
 type InsertThirdLevel interface {
+	Log() (string, []any)
 	Exec() (sql.Result, error)
 	ExecContext(ctx context.Context) (sql.Result, error)
 }

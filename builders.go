@@ -76,3 +76,38 @@ func (qb *QueryBuilder) DeleteQuery() (string, []any) {
 	query := fmt.Sprintf("DELETE FROM %s %s", qb.tableName, whereConditions)
 	return query, args
 }
+
+func (ib *InsertBuilder) InsertQuery() (string, []any) {
+	insertColumns := ""
+	if len(ib.columns) > 0 {
+		insertColumns = "(" + strings.Join(ib.columns, ", ") + ")"
+	}
+
+	var insertValues strings.Builder
+	for i := range len(ib.values) {
+		curVal := []string{}
+		for range len(ib.values[i]) {
+			curVal = append(curVal, "?")
+		}
+
+		insertValues.WriteString("(" + strings.Join(curVal, ", ") + "), ")
+	}
+
+	// users should make sure of this, but
+	// helps index out of bound error when insertValues is empty
+	if insertValues.Len() == 0 {
+		insertValues.WriteString("  ")
+	}
+
+	query := fmt.Sprintf("INSERT INTO %s %s VALUES %s", ib.tableName, insertColumns, insertValues.String()[:insertValues.Len()-2])
+	args := []any{}
+	if len(ib.values) > 0 {
+		for i := range ib.values {
+			for j := range ib.values[i] {
+				args = append(args, ib.values[i][j])
+			}
+		}
+	}
+
+	return query, args
+}

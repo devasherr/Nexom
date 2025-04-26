@@ -214,8 +214,18 @@ type insertThirdLevel struct {
 	ib *InsertBuilder
 }
 
+func (it *insertThirdLevel) Log() (string, []any) {
+	return it.ib.InsertQuery()
+}
+
 func (it *insertThirdLevel) Exec() (sql.Result, error) {
-	return it.ib.handleInsert()
+	query, args := it.Log()
+
+	if it.ib.context != nil {
+		return it.ib.db.ExecContext(it.ib.context, query, args...)
+	}
+
+	return it.ib.db.Exec(query, args...)
 }
 
 func (it *insertThirdLevel) ExecContext(ctx context.Context) (sql.Result, error) {
@@ -270,45 +280,6 @@ func (d *dropLevel) handleDrop() (sql.Result, error) {
 	}
 
 	return d.qb.db.Exec(query)
-}
-
-func (ib *InsertBuilder) handleInsert() (sql.Result, error) {
-	insertColumns := ""
-	if len(ib.columns) > 0 {
-		insertColumns = "(" + strings.Join(ib.columns, ", ") + ")"
-	}
-
-	var insertValues strings.Builder
-	for i := range len(ib.values) {
-		curVal := []string{}
-		for range len(ib.values[i]) {
-			curVal = append(curVal, "?")
-		}
-
-		insertValues.WriteString("(" + strings.Join(curVal, ", ") + "), ")
-	}
-
-	// users should make sure of this, but
-	// helps index out of bound error when insertValues is empty
-	if insertValues.Len() == 0 {
-		insertValues.WriteString("  ")
-	}
-
-	query := fmt.Sprintf("INSERT INTO %s %s VALUES %s", ib.tableName, insertColumns, insertValues.String()[:insertValues.Len()-2])
-	args := []any{}
-	if len(ib.values) > 0 {
-		for i := range ib.values {
-			for j := range ib.values[i] {
-				args = append(args, ib.values[i][j])
-			}
-		}
-	}
-
-	if ib.context != nil {
-		return ib.db.ExecContext(ib.context, query, args...)
-	}
-
-	return ib.db.Exec(query, args...)
 }
 
 func (ub *UpdateBuilder) handleUpdate() (sql.Result, error) {
