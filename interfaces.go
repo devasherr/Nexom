@@ -23,6 +23,8 @@ type LevelOne interface {
 	Drop() DropLevel
 	Insert(columns ...string) InsertSecondLevel
 	Update() UpdateSecondLevel
+
+	Prepare() (*sql.Stmt, error)
 }
 
 type SelectSecondLevel interface {

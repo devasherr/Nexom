@@ -80,6 +80,14 @@ func (o *Orm) Update() UpdateSecondLevel {
 	return &updateSecondLevel{ub: ub}
 }
 
+func (o *Orm) Prepare(query string) (*sql.Stmt, error) {
+	return o.qb.db.Prepare(query)
+}
+
+func (o *Orm) PrepareContext(ctx context.Context, query string) (*sql.Stmt, error) {
+	return o.qb.db.PrepareContext(ctx, query)
+}
+
 // level 2
 type ss struct {
 	qb *QueryBuilder
