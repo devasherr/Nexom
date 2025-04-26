@@ -52,6 +52,7 @@ type DeleteThirdLevel interface {
 }
 
 type DropLevel interface {
+	Log() string
 	Exec() (sql.Result, error)
 	ExecContext(ctx context.Context) (sql.Result, error)
 }

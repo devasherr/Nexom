@@ -132,8 +132,17 @@ type dropLevel struct {
 	qb *QueryBuilder
 }
 
+func (d *dropLevel) Log() string {
+	return fmt.Sprintf("DROP TABLE IF EXISTS %s", d.qb.tableName)
+}
+
 func (d *dropLevel) Exec() (sql.Result, error) {
-	return d.handleDrop()
+	query := d.Log()
+
+	if d.qb.context != nil {
+		return d.qb.db.ExecContext(d.qb.context, query)
+	}
+	return d.qb.db.Exec(query)
 }
 
 func (d *dropLevel) ExecContext(ctx context.Context) (sql.Result, error) {
@@ -283,23 +292,6 @@ func (uf *updateFourthLevel) Exec() (sql.Result, error) {
 func (uf *updateFourthLevel) ExecContext(ctx context.Context) (sql.Result, error) {
 	uf.ub.context = ctx
 	return uf.Exec()
-}
-
-func (q *QueryBuilder) handleSelect(query string, args []any) (*sql.Rows, error) {
-	if q.context != nil {
-		return q.db.QueryContext(q.context, query, args...)
-	}
-
-	return q.db.Query(query, args...)
-}
-
-func (d *dropLevel) handleDrop() (sql.Result, error) {
-	query := fmt.Sprintf("DROP TABLE IF EXISTS %s", d.qb.tableName)
-	if d.qb.context != nil {
-		return d.qb.db.ExecContext(d.qb.context, query)
-	}
-
-	return d.qb.db.Exec(query)
 }
 
 func (cb *CreateBuilder) handleCreateTable() (sql.Result, error) {
