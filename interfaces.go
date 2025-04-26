@@ -30,7 +30,7 @@ type SelectSecondLevel interface {
 	JoinLeft(tableName string) SelectModifier
 	JoinRight(tableName string) SelectModifier
 
-	Where(conditions ...string) SelectThirdLevel
+	Where(condition string, args ...any) SelectThirdLevel
 	Log() (string, []any)
 	Exec() (*sql.Rows, error)
 	ExecContext(ctx context.Context) (*sql.Rows, error)
@@ -54,7 +54,7 @@ type SelectFourthLevel interface {
 }
 
 type DeleteSecondLevel interface {
-	Where(conditions ...string) DeleteThirdLevel
+	Where(condition string, args ...any) DeleteThirdLevel
 	Log() (string, []any)
 	Exec() (sql.Result, error)
 	ExecContext(ctx context.Context) (sql.Result, error)
@@ -87,7 +87,7 @@ type UpdateSecondLevel interface {
 }
 
 type UpdateThirdLevel interface {
-	Where(fields ...string) UpdateFourthLevel
+	Where(condition string, args ...any) UpdateFourthLevel
 	Log() (string, []any)
 	Exec() (sql.Result, error)
 	ExecContext(ctx context.Context) (sql.Result, error)

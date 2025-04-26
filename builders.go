@@ -13,7 +13,8 @@ type QueryBuilder struct {
 
 	tableName    string
 	selectFields []string
-	whereClauses []string
+	whereClauses string
+	args         []any
 
 	joinStatement string
 	orderFields   []string
@@ -33,7 +34,8 @@ type UpdateBuilder struct {
 	context context.Context
 
 	tableName    string
-	whereClauses []string
+	whereClauses string
+	args         []any
 	values       M
 }
 
@@ -52,13 +54,9 @@ func (qb *QueryBuilder) SelectQuery() (string, []any) {
 	}
 
 	whereConditions := ""
-	args := []any{}
 
 	if len(qb.whereClauses) > 0 {
-		whereConditions = "WHERE " + qb.whereClauses[0]
-		for i := 1; i < len(qb.whereClauses); i++ {
-			args = append(args, qb.whereClauses[i])
-		}
+		whereConditions = "WHERE " + qb.whereClauses
 	}
 
 	orderFields := ""
@@ -67,22 +65,18 @@ func (qb *QueryBuilder) SelectQuery() (string, []any) {
 	}
 
 	query := fmt.Sprintf("SELECT %s FROM %s %s %s %s", fields, qb.tableName, qb.joinStatement, whereConditions, orderFields)
-	return query, args
+	return query, qb.args
 }
 
 func (qb *QueryBuilder) DeleteQuery() (string, []any) {
 	whereConditions := ""
-	args := []any{}
 
 	if len(qb.whereClauses) > 0 {
-		whereConditions = "WHERE " + qb.whereClauses[0]
-		for i := 1; i < len(qb.whereClauses); i++ {
-			args = append(args, qb.whereClauses[i])
-		}
+		whereConditions = "WHERE " + qb.whereClauses
 	}
 
 	query := fmt.Sprintf("DELETE FROM %s %s", qb.tableName, whereConditions)
-	return query, args
+	return query, qb.args
 }
 
 func (ib *InsertBuilder) InsertQuery() (string, []any) {
@@ -131,7 +125,7 @@ func (ub *UpdateBuilder) UpdateQuery() (string, []any) {
 	whereClauses := ""
 	for i := range ub.whereClauses {
 		if i == 0 {
-			whereClauses = ub.whereClauses[i]
+			whereClauses = ub.whereClauses
 			continue
 		}
 

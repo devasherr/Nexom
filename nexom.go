@@ -73,10 +73,8 @@ func (o *Orm) Insert(columns ...string) InsertSecondLevel {
 
 func (o *Orm) Update() UpdateSecondLevel {
 	ub := &UpdateBuilder{
-		db:           o.qb.db,
-		tableName:    o.qb.tableName,
-		whereClauses: []string{},
-		values:       M{},
+		db:        o.qb.db,
+		tableName: o.qb.tableName,
 	}
 
 	return &updateSecondLevel{ub: ub}
@@ -112,8 +110,9 @@ func (s *ss) JoinRight(tableName string) SelectModifier {
 	return &sm{qb: s.qb}
 }
 
-func (s *ss) Where(conditions ...string) SelectThirdLevel {
-	s.qb.whereClauses = conditions
+func (s *ss) Where(condition string, args ...any) SelectThirdLevel {
+	s.qb.whereClauses = condition
+	s.qb.args = args
 	return &st{qb: s.qb}
 }
 
@@ -138,8 +137,9 @@ type ds struct {
 	qb *QueryBuilder
 }
 
-func (d *ds) Where(conditions ...string) DeleteThirdLevel {
-	d.qb.whereClauses = conditions
+func (d *ds) Where(condition string, args ...any) DeleteThirdLevel {
+	d.qb.whereClauses = condition
+	d.qb.args = args
 	return &dt{qb: d.qb}
 }
 
@@ -284,8 +284,9 @@ type updateThirdLevel struct {
 	ub *UpdateBuilder
 }
 
-func (ut *updateThirdLevel) Where(fields ...string) UpdateFourthLevel {
-	ut.ub.whereClauses = fields
+func (ut *updateThirdLevel) Where(condition string, args ...any) UpdateFourthLevel {
+	ut.ub.whereClauses = condition
+	ut.ub.args = args
 	return &updateFourthLevel{ub: ut.ub}
 }
 
