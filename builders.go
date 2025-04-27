@@ -18,6 +18,7 @@ type QueryBuilder struct {
 
 	joinStatement string
 	orderFields   []string
+	limit         int
 }
 
 type InsertBuilder struct {
@@ -64,7 +65,13 @@ func (qb *QueryBuilder) SelectQuery() (string, []any) {
 		orderFields = "ORDER BY " + strings.Join(qb.orderFields, ", ")
 	}
 
-	query := fmt.Sprintf("SELECT %s FROM %s %s %s %s", fields, qb.tableName, qb.joinStatement, whereConditions, orderFields)
+	limit := ""
+	if qb.limit > 0 {
+		limit = "LIMIT ?"
+		qb.args = append(qb.args, qb.limit)
+	}
+
+	query := fmt.Sprintf("SELECT %s FROM %s %s %s %s %s", fields, qb.tableName, qb.joinStatement, whereConditions, orderFields, limit)
 	return query, qb.args
 }
 

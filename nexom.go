@@ -93,7 +93,7 @@ type ss struct {
 	qb *QueryBuilder
 }
 
-// select modifier (join)
+// select modifier (JOIN)
 type sm struct {
 	qb *QueryBuilder
 }
@@ -101,6 +101,25 @@ type sm struct {
 func (s *sm) On(conditions string) SelectSecondLevel {
 	s.qb.joinStatement += "ON " + conditions
 	return &ss{qb: s.qb}
+}
+
+// select bound (LIMIT)
+type sb struct {
+	qb *QueryBuilder
+}
+
+func (s *sb) Exec() (*sql.Rows, error) {
+	query, args := s.qb.SelectQuery()
+	if s.qb.context != nil {
+		return s.qb.db.QueryContext(s.qb.context, query, args...)
+	}
+
+	return s.qb.db.Query(query, args...)
+}
+
+func (s *sb) ExecContext(ctx context.Context) (*sql.Rows, error) {
+	s.qb.context = ctx
+	return s.Exec()
 }
 
 func (s *ss) Join(tableName string) SelectModifier {
@@ -126,6 +145,11 @@ func (s *ss) Where(condition string, args ...any) SelectThirdLevel {
 
 func (s *ss) Log() (string, []any) {
 	return s.qb.SelectQuery()
+}
+
+func (s *ss) Limit(n int) SelectBounder {
+	s.qb.limit = n
+	return &sb{qb: s.qb}
 }
 
 func (s *ss) Exec() (*sql.Rows, error) {
@@ -229,6 +253,11 @@ func (s *st) Order(fields ...string) SelectFourthLevel {
 	return &sf{qb: s.qb}
 }
 
+func (s *st) Limit(n int) SelectBounder {
+	s.qb.limit = n
+	return &sb{qb: s.qb}
+}
+
 func (s *st) Exec() (*sql.Rows, error) {
 	query, args := s.Log()
 	if s.qb.context != nil {
@@ -324,6 +353,11 @@ type sf struct {
 
 func (s *sf) Log() (string, []any) {
 	return s.qb.SelectQuery()
+}
+
+func (s *sf) Limit(n int) SelectBounder {
+	s.qb.limit = n
+	return &sb{qb: s.qb}
 }
 
 func (s *sf) Exec() (*sql.Rows, error) {

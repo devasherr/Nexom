@@ -33,26 +33,34 @@ type SelectSecondLevel interface {
 	JoinRight(tableName string) SelectModifier
 
 	Where(condition string, args ...any) SelectThirdLevel
-	Log() (string, []any)
 	Exec() (*sql.Rows, error)
 	ExecContext(ctx context.Context) (*sql.Rows, error)
+	Log() (string, []any)
+	Limit(n int) SelectBounder
 }
 
 type SelectModifier interface {
 	On(conditions string) SelectSecondLevel
 }
 
-type SelectThirdLevel interface {
-	Order(fields ...string) SelectFourthLevel
-	Log() (string, []any)
+type SelectBounder interface {
 	Exec() (*sql.Rows, error)
 	ExecContext(ctx context.Context) (*sql.Rows, error)
 }
 
-type SelectFourthLevel interface {
-	Log() (string, []any)
+type SelectThirdLevel interface {
 	Exec() (*sql.Rows, error)
 	ExecContext(ctx context.Context) (*sql.Rows, error)
+	Order(fields ...string) SelectFourthLevel
+	Log() (string, []any)
+	Limit(n int) SelectBounder
+}
+
+type SelectFourthLevel interface {
+	Exec() (*sql.Rows, error)
+	ExecContext(ctx context.Context) (*sql.Rows, error)
+	Log() (string, []any)
+	Limit(n int) SelectBounder
 }
 
 type DeleteSecondLevel interface {
