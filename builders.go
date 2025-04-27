@@ -123,24 +123,29 @@ func (ib *InsertBuilder) InsertQuery() (string, []any) {
 
 func (ub *UpdateBuilder) UpdateQuery() (string, []any) {
 	var values strings.Builder
-	args := []any{}
+	args := make([]any, 0)
+
 	for key, val := range ub.values {
 		values.WriteString(key + " = ?, ")
 		args = append(args, val)
 	}
 
 	whereClauses := ""
-	for i := range ub.whereClauses {
-		if i == 0 {
-			whereClauses = ub.whereClauses
-			continue
-		}
-
-		args = append(args, ub.whereClauses[i])
+	if len(ub.whereClauses) > 0 {
+		whereClauses = "WHERE " + ub.whereClauses
 	}
 
 	setValues := values.String()
-	query := fmt.Sprintf("UPDATE %s SET %s WHERE %s", ub.tableName, setValues[:len(setValues)-2], whereClauses)
+	// index out of bound (todo: parsing should be better)
+	if len(setValues) == 0 {
+		setValues = "  "
+	}
+
+	query := fmt.Sprintf("UPDATE %s SET %s %s", ub.tableName, setValues[:len(setValues)-2], whereClauses)
+
+	if len(ub.args) > 0 {
+		args = append(args, ub.args...)
+	}
 
 	return query, args
 }
