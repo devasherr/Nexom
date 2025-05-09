@@ -122,6 +122,10 @@ func (s *sb) ExecContext(ctx context.Context) (*sql.Rows, error) {
 	return s.Exec()
 }
 
+func (s *sb) Log() (string, []any) {
+	return s.qb.SelectQuery()
+}
+
 func (s *ss) Join(tableName string) SelectModifier {
 	s.qb.joinStatement = "JOIN " + tableName + " "
 	return &sm{qb: s.qb}

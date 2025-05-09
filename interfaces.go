@@ -46,6 +46,7 @@ type SelectModifier interface {
 type SelectBounder interface {
 	Exec() (*sql.Rows, error)
 	ExecContext(ctx context.Context) (*sql.Rows, error)
+	Log() (string, []any)
 }
 
 type SelectThirdLevel interface {
